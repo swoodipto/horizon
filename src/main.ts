@@ -1,114 +1,72 @@
-import {
-	Editor,
-	MarkdownView,
-	MarkdownFileInfo,
-	Modal,
-	Notice,
-	Plugin,
-} from 'obsidian';
-import {
-	DEFAULT_SETTINGS,
-	MyPluginSettings,
-	SampleSettingTab,
-} from './settings';
+import { Notice, Plugin } from 'obsidian';
+import { HorizonSidebarView, HORIZON_VIEW_TYPE } from './ui/sidebar';
+import { SidebarManager } from './ui/sidebar-manager';
+import { HorizonNotesView, HORIZON_NOTES_VIEW_TYPE } from './ui/notes-view';
+import { SidebarOption } from './ui/sidebar-options';
+import { openNotesInCenter } from './ui/open-notes';
+import { DEFAULT_SETTINGS, HorizonSettings, normalizeSettings } from './settings';
+import { HorizonSettingsTab } from './ui/settings-tab';
+import { registerIcons } from './ui/icons';
 
-// Remember to rename these classes and interfaces!
+export default class HorizonPlugin extends Plugin {
+	settings: HorizonSettings = { ...DEFAULT_SETTINGS };
+	private sidebar!: SidebarManager;
+	private notesOperation = Promise.resolve();
 
-export default class MyPlugin extends Plugin {
-	settings!: MyPluginSettings;
-
-	async onload() {
-		await this.loadSettings();
-
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (_evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
-
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			},
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (
-				editor: Editor,
-				_ctx: MarkdownView | MarkdownFileInfo,
-			) => {
-				editor.replaceSelection('Sample editor command');
-			},
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView =
-					this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
-			},
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(activeDocument, 'click', (_evt: MouseEvent) => {
-			new Notice('Click');
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(
-			window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000),
+	async onload(): Promise<void> {
+		registerIcons(this);
+		this.settings = normalizeSettings(await this.loadData());
+		this.sidebar = new SidebarManager(
+			this.app.workspace,
+			HORIZON_VIEW_TYPE,
+			(leaf) => new HorizonSidebarView(leaf, (option) => this.openNotes(option)),
+			(view) => view instanceof HorizonSidebarView,
 		);
+		this.register(() => this.sidebar.dispose());
+
+		this.registerView(
+			HORIZON_VIEW_TYPE,
+			(leaf) => new HorizonSidebarView(leaf, (option) => this.openNotes(option)),
+		);
+		this.registerView(HORIZON_NOTES_VIEW_TYPE, (leaf) => new HorizonNotesView(leaf, () => this.settings));
+		this.addSettingTab(new HorizonSettingsTab(this.app, this));
+
+		this.addCommand({
+			id: 'open-sidebar',
+			name: 'Open sidebar',
+			callback: () => this.openSidebar(true),
+		});
+
+		// Add a native tab beside Files, Search, and Bookmarks without selecting it.
+		this.app.workspace.onLayoutReady(() => {
+			this.sidebar.start();
+			void this.openSidebar(false);
+		});
 	}
 
-	onunload() {}
-
-	async loadSettings() {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			(await this.loadData()) as Partial<MyPluginSettings>,
-		);
+	private async openSidebar(reveal: boolean): Promise<void> {
+		try {
+			await this.sidebar.open(reveal);
+		} catch (error) {
+			console.error('horizon: could not open the sidebar', error);
+			new Notice('Could not open the horizon sidebar.');
+		}
 	}
 
-	async saveSettings() {
+	async saveSettings(): Promise<void> {
+		for (const leaf of this.app.workspace.getLeavesOfType(HORIZON_NOTES_VIEW_TYPE)) {
+			if (leaf.view instanceof HorizonNotesView) leaf.view.applySettings();
+		}
 		await this.saveData(this.settings);
 	}
-}
 
-class SampleModal extends Modal {
-	onOpen() {
-		const { contentEl } = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
+	private openNotes(option: SidebarOption): Promise<void> {
+		this.notesOperation = this.notesOperation.then(() =>
+			openNotesInCenter(this.app.workspace, HORIZON_NOTES_VIEW_TYPE, option.id),
+		).catch((error: unknown) => {
+			console.error('horizon: could not open the note list', error);
+			new Notice('Could not open the note list.');
+		});
+		return this.notesOperation;
 	}
 }

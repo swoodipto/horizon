@@ -5,6 +5,7 @@ import { globalIgnores, defineConfig } from 'eslint/config';
 export default defineConfig(
 	globalIgnores([
 		'node_modules',
+		'tests', // Node regression harness, outside the plugin's TypeScript project.
 		'dist',
 		'esbuild.config.mjs',
 		'version-bump.mjs',
@@ -29,4 +30,9 @@ export default defineConfig(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		rules: {
+			'obsidianmd/ui/sentence-case': ['warn', { brands: ['horizon'] }],
+		},
+	},
 );

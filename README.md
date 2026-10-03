@@ -1,92 +1,39 @@
-# Obsidian Sample Plugin
+# horizon
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+A planning sidebar for Obsidian.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+The sunrise tab appears in the top-left sidebar beside Files, Search, and Bookmarks. Select it to open horizon, or run **horizon: Open sidebar** from the command palette.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
+- **Horizon:** Life Areas, Goals, Projects, Insights.
+- **Plan:** Upcoming, Timeline.
 
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and outputs a Notice on click.
-- Registers a global interval which logs 'setInterval' to the console.
+Select a section heading to collapse or expand it. Category clicks display entries in a center results tab. Life Areas matches `#area`, Goals matches `#goal`, and Projects matches `#project`. A tag in note properties lists the note name with its `parent` property (if present) on a muted second line, with an icon based on the parent note’s property tags: `layers-2` for areas, `goal` for goals, the current status icon for projects, `sticky-note` for other pages; a tag on a body line lists its text with the parent note name on a muted second line. Clicking a line entry opens its parent note at that line in the same tab, in either reading or editing mode. Bullet markers, task checkboxes, and matching tags are omitted from line labels. Nested tags are supported. Lists refresh when metadata or note names change. Other options show a test notice.
 
-## First time developing plugins?
+In **Settings → horizon**, **Use theme content width** follows the theme’s reading-mode width by default. Turn it off to set **Custom content width** in pixels. Width changes apply immediately and are saved.
 
-Quick starting guide for new plugin devs:
+In Projects, select a circle to open Obsidian’s native menu: **todo**, **backburner**, **waiting**, **discuss**, **ready**, **doing**, **completed**. Choosing a status updates the list icon and replaces the previous status tag in a whole note’s `tags` property or on the specific inline project line. Other tags are preserved. Todo is the default, shown as `circle-small` without a status tag; choosing todo clears status tags. Backburner uses `circle-dashed`, waiting `clock`, discuss `at-sign`, ready `circle`, doing `circle-slash`, and completed `circle-check-big`. Selecting the rest of the row still opens the note in the same tab.
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `src/main.ts` to `main.js`.
-- Make changes to `src/main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+When a parent note appears in the same category list, its child notes and tagged lines nest underneath it with the supplied curved parent-child icon in a muted color. Multiple levels are supported. Each entry appears once, under the first available parent in its property order. The parent represented by indentation is omitted from the child’s subtitle; other parent references remain. Links to parents outside the list remain subtitles without indentation.
 
-## Releasing new releases
+Icons use Obsidian’s `setIcon()` API. The Projects sidebar uses the previous four-circle Lucide grid, registered with `addIcon()`; project entry and parent-reference icons follow their status.
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+The `dependent` property supports the same note-link forms as `parent`. A note with `dependent: "[[Another note]]"` nests beneath Another note when both appear in the category, using the supplied arrow connector. References outside the current list remain in the subtitle. If both properties have available links, `parent` takes precedence, followed by `dependent`; each entry is listed once. Tagged lines stay beneath their source note with the parent connector. Both connectors are registered once and reused with native icon sizing, spacing, and muted colors.
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+## Development
 
-## Adding your plugin to the community plugin list
+Requires Node.js and npm, and Obsidian 1.7.2 or later.
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v18 (`node --version`).
-- `npm i` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code.
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-	"fundingUrl": "https://buymeacoffee.com"
-}
+```sh
+npm ci
+npm run dev
 ```
 
-If you have multiple URLs, you can also do:
+The development build watches `src/` and writes `main.js` in the plugin folder. Reload the plugin in Obsidian to load source changes.
 
-```json
-{
-	"fundingUrl": {
-		"Buy Me a Coffee": "https://buymeacoffee.com",
-		"GitHub Sponsor": "https://github.com/sponsors",
-		"Patreon": "https://www.patreon.com/"
-	}
-}
+```sh
+npm run build
+npm run lint
+npm run test
 ```
 
-## API Documentation
-
-See https://docs.obsidian.md
+Keep `main.js`, `manifest.json`, and `styles.css` together in `.obsidian/plugins/horizon/` when installing the plugin. Restart Obsidian after editing the manifest.

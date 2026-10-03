@@ -1,8 +1,370 @@
-/*
+.view-content.horizon-sidebar {
+	padding: var(--size-4-3);
+	background-color: var(--background-secondary);
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.horizon-menu {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
 
-If your plugin does not need CSS, delete this file.
+.horizon-section-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 4px 12px 8px;
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+	list-style: none;
+	cursor: var(--cursor);
+}
 
-*/
+.horizon-section-heading::-webkit-details-marker {
+	display: none;
+}
+
+.horizon-section-chevron,
+.horizon-option-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	color: var(--text-muted);
+}
+
+.horizon-section-chevron .svg-icon {
+	width: var(--icon-s);
+	height: var(--icon-s);
+}
+
+.horizon-section:not([open]) .horizon-section-chevron {
+	transform: rotate(-90deg);
+}
+
+.horizon-options {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.horizon-sidebar button.horizon-option {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 10px;
+	width: 100%;
+	height: auto;
+	min-height: 34px;
+	margin: 0;
+	padding: var(--size-4-1) var(--size-4-3);
+	border: 0;
+	border-radius: var(--radius-m);
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-muted);
+	font-family: inherit;
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-normal);
+	text-align: left;
+	cursor: var(--cursor);
+}
+
+.horizon-option-icon .svg-icon {
+	width: var(--icon-s);
+	height: var(--icon-s);
+	stroke-width: var(--icon-s-stroke-width);
+}
+
+.horizon-sidebar button.horizon-option:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.horizon-sidebar button.horizon-option.is-active {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+.horizon-section-heading:focus-visible,
+.horizon-sidebar button.horizon-option:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.view-content.horizon-notes {
+	padding: 0;
+}
+
+/* Reading views handle the phone header inset inside their scroll container,
+   just like native Markdown panes, so the outer pane must not add it again. */
+.is-phone .mod-root .workspace-leaf-content[data-type="horizon-tagged-notes"] {
+	--view-top-spacing: 0;
+}
+
+.horizon-notes .horizon-note-results {
+	padding: 0;
+	border-top: 0;
+}
+
+.horizon-notes.horizon-custom-width .markdown-preview-view .markdown-preview-sizer.markdown-preview-sizer {
+	width: 100%;
+	max-width: var(--horizon-content-width);
+	margin-inline: auto;
+}
+
+.horizon-results-heading {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: var(--size-4-2);
+}
+
+.horizon-results-heading h3 {
+	margin: 0;
+	white-space: pre-wrap;
+	font-size: inherit;
+	font-weight: inherit;
+	font-family: inherit;
+	line-height: inherit;
+	font-style: inherit;
+	font-variant: inherit;
+	color: inherit;
+	letter-spacing: inherit;
+}
+
+/* Category titles remain visible when native note titles are hidden. */
+.horizon-notes .horizon-results-heading.inline-title:not([data-level]) {
+	display: flex;
+}
+
+.horizon-notes .horizon-results-heading .horizon-inline-title {
+	display: block;
+	margin: 0;
+	padding: 0;
+	align-self: flex-start;
+}
+
+.horizon-status-filter {
+	margin-inline-start: auto;
+	flex-shrink: 0;
+	font-size: inherit;
+	line-height: inherit;
+	/* The control must not increase the native title's line box. */
+	max-block-size: 1lh;
+}
+
+.horizon-note-count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	align-self: center;
+	flex: 0 0 auto;
+	box-sizing: border-box;
+	min-width: 2em;
+	aspect-ratio: 1;
+	padding: calc(var(--size-4-1) * 0.75);
+	border-radius: 50%;
+	background-color: var(--background-modifier-hover);
+	color: var(--text-muted);
+	font-size: calc(var(--font-ui-small) * 0.75);
+	line-height: 1;
+}
+
+.horizon-empty-state,
+.horizon-note-path {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.horizon-notes .horizon-note-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	list-style: none;
+	margin: var(--size-4-2) 0 0;
+	margin-inline: calc(-1 * var(--size-4-2));
+	padding: 0;
+}
+
+.horizon-notes .horizon-note-list .horizon-note-item {
+	margin-inline: 0;
+	padding: 0;
+	font-size: var(--font-text-size);
+	font-family: var(--font-text);
+	font-weight: var(--font-normal);
+	line-height: var(--line-height-normal);
+}
+
+.horizon-notes .horizon-note-list .horizon-note-children {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	list-style: none;
+	margin: var(--size-2-1) 0 0;
+	padding: 0;
+}
+
+.horizon-notes .horizon-note-children .horizon-note-children {
+	padding-inline-start: calc(var(--icon-s) + var(--size-4-2) + var(--size-2-3));
+}
+
+.horizon-note-branch {
+	display: flex;
+	flex: 0 0 auto;
+	padding-inline-start: var(--size-2-3);
+	color: var(--text-faint);
+	opacity: var(--icon-opacity);
+}
+
+.horizon-note-branch .svg-icon {
+	width: var(--icon-s);
+	height: var(--icon-s);
+	stroke-width: var(--icon-s-stroke-width);
+}
+
+.horizon-note-icon {
+	display: flex;
+	flex: 0 0 auto;
+	color: var(--text-muted);
+}
+
+.horizon-note-icon .svg-icon {
+	width: var(--icon-m);
+	height: var(--icon-m);
+	stroke-width: var(--icon-m-stroke-width);
+}
+
+.horizon-project-row {
+	position: relative;
+}
+
+.tooltip.horizon-project-tooltip {
+	max-width: 207px;
+	text-align: left;
+}
+
+.horizon-project-icon-placeholder {
+	width: var(--icon-m);
+	height: var(--icon-m);
+}
+
+.horizon-notes button.horizon-project-status {
+	position: absolute;
+	inset-inline-start: var(--size-4-2);
+	top: 50%;
+	transform: translateY(-50%);
+	width: var(--icon-m);
+	height: var(--icon-m);
+	padding: 0;
+	border: 0;
+	box-shadow: none;
+}
+
+.horizon-project-row.is-nested button.horizon-project-status {
+	inset-inline-start: calc(var(--size-4-2) + var(--icon-s) + var(--size-2-3) + var(--size-4-2));
+}
+
+.horizon-project-row:hover > a.horizon-note-link {
+	background-color: var(--nav-item-background-hover);
+	color: var(--nav-item-color-hover);
+}
+
+.is-mobile .horizon-notes .horizon-project-icon-placeholder,
+.is-mobile .horizon-notes button.horizon-project-status {
+	width: var(--icon-s);
+	height: var(--icon-s);
+}
+
+.horizon-note-text {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.horizon-note-title,
+.horizon-note-subtitle {
+	line-height: var(--line-height-tight);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.horizon-note-parents,
+.horizon-note-parent {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+}
+
+.horizon-note-parents {
+	gap: var(--size-4-2);
+}
+
+.horizon-note-parent {
+	gap: var(--size-4-1);
+}
+
+.horizon-note-parent-icon {
+	display: flex;
+	flex: 0 0 auto;
+}
+
+.horizon-note-parent-icon .svg-icon {
+	width: var(--icon-xs);
+	height: var(--icon-xs);
+	stroke-width: var(--icon-xs-stroke-width);
+}
+
+.is-mobile .horizon-notes {
+	--horizon-icon-xxs: calc(var(--icon-xs) - var(--size-2-1));
+}
+
+.is-mobile .horizon-notes .horizon-note-icon .svg-icon {
+	width: var(--icon-s);
+	height: var(--icon-s);
+	stroke-width: var(--icon-s-stroke-width);
+}
+
+.is-mobile .horizon-notes .horizon-note-parent-icon .svg-icon {
+	width: var(--horizon-icon-xxs);
+	height: var(--horizon-icon-xxs);
+}
+
+.horizon-note-parent-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.horizon-note-subtitle {
+	font-size: var(--font-ui-smaller);
+	color: color-mix(in srgb, var(--text-faint) 50%, var(--text-muted));
+}
+
+.horizon-notes a.horizon-note-link {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	width: 100%;
+	padding: var(--size-4-1) var(--size-4-2);
+	border-radius: var(--radius-m);
+	color: var(--text-normal);
+	font-weight: inherit;
+	text-decoration: none;
+}
+
+.horizon-notes a.horizon-note-link:hover {
+	background-color: var(--nav-item-background-hover);
+	color: var(--nav-item-color-hover);
+	text-decoration: none;
+}
+
+.horizon-notes a.horizon-note-link:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}

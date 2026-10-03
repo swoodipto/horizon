@@ -1,38 +1,24 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
-import MyPlugin from './main';
-
-export interface MyPluginSettings {
-	mySetting: string;
+export interface HorizonSettings {
+	useThemeContentWidth: boolean;
+	customContentWidth: number;
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default',
+export const DEFAULT_SETTINGS: HorizonSettings = {
+	useThemeContentWidth: true,
+	customContentWidth: 760,
 };
 
-export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+export function validContentWidth(width: number): boolean {
+	return Number.isFinite(width) && width >= 200 && width <= 4000;
+}
 
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		const { containerEl } = this;
-
-		containerEl.empty();
-
-		new Setting(containerEl)
-			.setName('Settings #1')
-			.setDesc("It's a secret")
-			.addText((text) =>
-				text
-					.setPlaceholder('Enter your secret')
-					.setValue(this.plugin.settings.mySetting)
-					.onChange(async (value) => {
-						this.plugin.settings.mySetting = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-	}
+export function normalizeSettings(data: unknown): HorizonSettings {
+	if (!data || typeof data !== 'object') return { ...DEFAULT_SETTINGS };
+	const saved = data as Partial<HorizonSettings>;
+	return {
+		useThemeContentWidth: typeof saved.useThemeContentWidth === 'boolean'
+			? saved.useThemeContentWidth : DEFAULT_SETTINGS.useThemeContentWidth,
+		customContentWidth: typeof saved.customContentWidth === 'number' && validContentWidth(saved.customContentWidth)
+			? saved.customContentWidth : DEFAULT_SETTINGS.customContentWidth,
+	};
 }
