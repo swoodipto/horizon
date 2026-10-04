@@ -1,26 +1,13 @@
 import { App, Menu, Notice } from 'obsidian';
 import { PROJECT_STATUSES, setProjectStatus } from './project-status';
-import type { ProjectFilter } from './project-filter';
 
-/** Both controls share native menu positioning, accessibility and cleanup. */
+/** Native project status editing, with shared positioning and cleanup. */
 export class ProjectMenus {
 	private menu: Menu | undefined;
 
 	constructor(private app: App, private refresh: () => Promise<void>) {}
 
 	close(): void { this.menu?.hide(); }
-
-	openFilter(button: HTMLElement, event: MouseEvent, filter: ProjectFilter, select: (filter: ProjectFilter) => void): void {
-		const menu = this.create(button);
-		menu.addItem(item => item.setTitle('All').setIcon('list-filter').setChecked(filter === 'all')
-			.onClick(() => select('all')));
-		menu.addSeparator();
-		for (const status of PROJECT_STATUSES) {
-			menu.addItem(item => item.setTitle(status.tag).setIcon(status.icon).setChecked(filter === status.tag)
-				.onClick(() => select(status.tag)));
-		}
-		this.show(menu, button, event);
-	}
 
 	openStatus(button: HTMLElement, event: MouseEvent): void {
 		const path = button.getAttribute('data-note-path');

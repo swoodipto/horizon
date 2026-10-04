@@ -72,6 +72,130 @@
 	cursor: var(--cursor);
 }
 
+.horizon-projects-menu {
+	position: relative;
+}
+
+.horizon-projects-menu:not(.is-collapsed)::after {
+	content: "";
+	position: absolute;
+	inset-block: 27px var(--size-4-1);
+	inset-inline-start: var(--size-4-3);
+	width: var(--icon-s);
+	background: linear-gradient(to right,
+		transparent calc(50% - 0.5px),
+		var(--background-modifier-border) calc(50% - 0.5px),
+		var(--background-modifier-border) calc(50% + 0.5px),
+		transparent calc(50% + 0.5px));
+	pointer-events: none;
+}
+
+.horizon-projects-header {
+	display: flex;
+	align-items: stretch;
+	gap: var(--size-2-1);
+}
+
+.horizon-projects-header .horizon-option {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.horizon-sidebar button.horizon-projects-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	height: auto;
+	min-height: 34px;
+	margin-inline-end: var(--size-4-2);
+	padding: var(--size-4-1) var(--size-4-2);
+	border: 0;
+	border-radius: var(--radius-m);
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: var(--cursor);
+}
+
+.horizon-sidebar button.horizon-projects-toggle:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.horizon-projects-chevron {
+	display: flex;
+}
+
+.horizon-projects-chevron .svg-icon {
+	width: var(--icon-s);
+	height: var(--icon-s);
+}
+
+.horizon-projects-menu.is-collapsed .horizon-projects-chevron {
+	transform: rotate(-90deg);
+}
+
+.horizon-doing-projects {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: var(--size-4-1) 0 var(--size-4-1) calc(var(--size-4-3) + var(--icon-s) + 10px);
+}
+
+.horizon-projects-menu.is-collapsed .horizon-doing-projects {
+	display: none;
+}
+
+.horizon-projects-empty {
+	padding: var(--size-2-2) var(--size-4-3);
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.horizon-sidebar button.horizon-doing-project {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: var(--size-4-2);
+	width: calc(100% + var(--size-4-2));
+	min-height: 30px;
+	margin: 0;
+	margin-inline-start: calc(0px - var(--size-4-2));
+	padding: var(--size-2-2) var(--size-4-3) var(--size-2-2) var(--size-4-2);
+	border: 0;
+	border-radius: var(--radius-m);
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-muted);
+	font: inherit;
+	font-size: var(--font-ui-small);
+	text-align: left;
+}
+
+.horizon-sidebar button.horizon-doing-project:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.horizon-doing-project-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.horizon-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
 .horizon-option-icon .svg-icon {
 	width: var(--icon-s);
 	height: var(--icon-s);
@@ -90,7 +214,9 @@
 }
 
 .horizon-section-heading:focus-visible,
-.horizon-sidebar button.horizon-option:focus-visible {
+.horizon-sidebar button.horizon-option:focus-visible,
+.horizon-sidebar button.horizon-projects-toggle:focus-visible,
+.horizon-sidebar button.horizon-doing-project:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: -2px;
 }
@@ -146,15 +272,6 @@
 	margin: 0;
 	padding: 0;
 	align-self: flex-start;
-}
-
-.horizon-status-filter {
-	margin-inline-start: auto;
-	flex-shrink: 0;
-	font-size: inherit;
-	line-height: inherit;
-	/* The control must not increase the native title's line box. */
-	max-block-size: 1lh;
 }
 
 .horizon-note-count {
@@ -367,4 +484,90 @@
 .horizon-notes a.horizon-note-link:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: -2px;
+}
+
+.horizon-status-pills {
+	display: flex;
+	flex-wrap: nowrap;
+	gap: var(--size-4-2);
+	min-width: 0;
+	max-width: 100%;
+	margin-block: var(--size-4-2);
+	padding-block: var(--size-2-2);
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	scrollbar-width: none;
+	--horizon-pill-fade-left: #000;
+	--horizon-pill-fade-right: #000;
+	--horizon-pill-fade-size: var(--size-4-4);
+	-webkit-mask-image: linear-gradient(to right, var(--horizon-pill-fade-left), #000 var(--horizon-pill-fade-size), #000 calc(100% - var(--horizon-pill-fade-size)), var(--horizon-pill-fade-right));
+	mask-image: linear-gradient(to right, var(--horizon-pill-fade-left), #000 var(--horizon-pill-fade-size), #000 calc(100% - var(--horizon-pill-fade-size)), var(--horizon-pill-fade-right));
+}
+
+.horizon-status-pills::-webkit-scrollbar {
+	display: none;
+}
+
+.horizon-status-pills.can-scroll-left {
+	--horizon-pill-fade-left: transparent;
+}
+
+.horizon-status-pills.can-scroll-right {
+	--horizon-pill-fade-right: transparent;
+}
+
+.horizon-notes button.horizon-status-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-1);
+	flex: 0 0 auto;
+	min-height: var(--input-height);
+	padding: var(--size-4-1) var(--size-4-3);
+	border: 1px solid transparent;
+	border-radius: 999px;
+	box-shadow: none;
+	background-color: var(--background-modifier-hover);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-normal);
+	white-space: nowrap;
+}
+
+.horizon-notes button.horizon-status-pill.is-active {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+@media (hover: hover) {
+	.horizon-notes button.horizon-status-pill:hover {
+		background-color: var(--background-modifier-border-hover);
+		color: var(--text-normal);
+	}
+
+	.horizon-notes button.horizon-status-pill.is-active:hover {
+		background-color: var(--interactive-accent-hover);
+		color: var(--text-on-accent);
+	}
+}
+
+.horizon-notes button.horizon-status-pill:focus-visible {
+	outline: none;
+}
+
+.horizon-status-pill-icon {
+	display: flex;
+	flex: 0 0 auto;
+}
+
+.horizon-status-pill-icon .svg-icon {
+	width: var(--icon-s);
+	height: var(--icon-s);
+}
+
+/* Reuse this class on interface text that must not trigger mobile selection. */
+.horizon-no-select,
+.horizon-no-select * {
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
 }

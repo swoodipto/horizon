@@ -13,6 +13,17 @@ In **Settings → horizon**, **Use theme content width** follows the theme’s r
 
 In Projects, select a circle to open Obsidian’s native menu: **todo**, **backburner**, **waiting**, **discuss**, **ready**, **doing**, **completed**. Choosing a status updates the list icon and replaces the previous status tag in a whole note’s `tags` property or on the specific inline project line. Other tags are preserved. Todo is the default, shown as `circle-small` without a status tag; choosing todo clears status tags. Backburner uses `circle-dashed`, waiting `clock`, discuss `at-sign`, ready `circle`, doing `circle-slash`, and completed `circle-check-big`. Selecting the rest of the row still opens the note in the same tab.
 
+Projects show status pills above the list when at least two statuses are assigned to its entries. Pills stay available while filtering, and overflow scrolls horizontally on desktop and mobile. Selected pills use the theme accent color.
+
+The **Projects** item in the sidebar expands to show projects with the Doing status. Select a nested project to open its note directly; select **Projects** to open the complete project list.
+
+- Select a pill to show one status. Select the sole active pill again to show all projects.
+- On macOS, hold **Command** while selecting pills to toggle multiple statuses. On Windows and Linux, hold **Ctrl**.
+- On mobile, hold a pill for **1 second** to activate multi-select. A notice confirms the mode; subsequent taps toggle statuses. Hold a pill for 1 second again to return to single selection. Swiping cancels the hold so the pill row can scroll.
+- Press **Escape** while focused in the Projects view to clear the selected statuses and exit multi-select.
+
+Filters are saved with the view and never change note contents. If a selected status disappears from the complete project list, it is removed from the filter; clearing the last selection shows all projects.
+
 When a parent note appears in the same category list, its child notes and tagged lines nest underneath it with the supplied curved parent-child icon in a muted color. Multiple levels are supported. Each entry appears once, under the first available parent in its property order. The parent represented by indentation is omitted from the child’s subtitle; other parent references remain. Links to parents outside the list remain subtitles without indentation.
 
 Icons use Obsidian’s `setIcon()` API. The Projects sidebar uses the previous four-circle Lucide grid, registered with `addIcon()`; project entry and parent-reference icons follow their status.

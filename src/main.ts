@@ -4,6 +4,7 @@ import { SidebarManager } from './ui/sidebar-manager';
 import { HorizonNotesView, HORIZON_NOTES_VIEW_TYPE } from './ui/notes-view';
 import { SidebarOption } from './ui/sidebar-options';
 import { openNotesInCenter } from './ui/open-notes';
+import { openNoteInCurrentTab } from './ui/open-note';
 import { DEFAULT_SETTINGS, HorizonSettings, normalizeSettings } from './settings';
 import { HorizonSettingsTab } from './ui/settings-tab';
 import { registerIcons } from './ui/icons';
@@ -19,14 +20,16 @@ export default class HorizonPlugin extends Plugin {
 		this.sidebar = new SidebarManager(
 			this.app.workspace,
 			HORIZON_VIEW_TYPE,
-			(leaf) => new HorizonSidebarView(leaf, (option) => this.openNotes(option)),
+			(leaf) => new HorizonSidebarView(leaf, (option) => this.openNotes(option),
+				(path, line) => this.openProject(path, line)),
 			(view) => view instanceof HorizonSidebarView,
 		);
 		this.register(() => this.sidebar.dispose());
 
 		this.registerView(
 			HORIZON_VIEW_TYPE,
-			(leaf) => new HorizonSidebarView(leaf, (option) => this.openNotes(option)),
+			(leaf) => new HorizonSidebarView(leaf, (option) => this.openNotes(option),
+				(path, line) => this.openProject(path, line)),
 		);
 		this.registerView(HORIZON_NOTES_VIEW_TYPE, (leaf) => new HorizonNotesView(leaf, () => this.settings));
 		this.addSettingTab(new HorizonSettingsTab(this.app, this));
@@ -68,5 +71,13 @@ export default class HorizonPlugin extends Plugin {
 			new Notice('Could not open the note list.');
 		});
 		return this.notesOperation;
+	}
+
+	private async openProject(path: string, line?: number): Promise<void> {
+		const leaf = this.app.workspace.getLeavesOfType(HORIZON_NOTES_VIEW_TYPE)[0]
+			?? this.app.workspace.getLeaf('tab');
+		await openNoteInCurrentTab(this.app.vault, leaf, path, line);
+		await this.app.workspace.revealLeaf(leaf);
+		this.app.workspace.setActiveLeaf(leaf, { focus: true });
 	}
 }
