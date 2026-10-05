@@ -1,18 +1,28 @@
 import { debounce, ItemView, Notice, parseFrontMatterTags, setIcon, WorkspaceLeaf } from 'obsidian';
 import { SIDEBAR_SECTIONS, SidebarOption } from './sidebar-options';
 import { HORIZON_ICON } from './icons';
+import { GOALS_ICON } from './icon-ids';
 import { findTaggedEntries, type TaggedEntry } from './tagged-notes';
 import { projectEntryStatus } from './project-filter';
+import { projectStatusForTags } from './project-status';
 import type { TFile } from 'obsidian';
+import { OptionKeyboardShortcuts } from './option-keyboard-shortcuts';
+import { shortcutForOption } from './option-shortcuts';
+import { parentNotes } from './parent-notes';
+import { groupEntriesByParent } from './parent-entry-groups';
+import { isPlanningOption } from '../planning/option';
 
 export const HORIZON_VIEW_TYPE = 'horizon-sidebar';
+const HIDDEN_SIDEBAR_OPTIONS = new Set(['insights', 'upcoming', 'timeline']);
 
 export class HorizonSidebarView extends ItemView {
 	navigation = false;
 	private selectedOption = 'life-areas';
 	private optionButtons = new Map<string, HTMLElement>();
+	private projectsToggle: HTMLButtonElement | undefined;
 	private doingProjectsEl: HTMLElement | undefined;
 	private renderVersion = 0;
+	private shortcuts: OptionKeyboardShortcuts | undefined;
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -34,10 +44,22 @@ export class HorizonSidebarView extends ItemView {
 		return HORIZON_ICON;
 	}
 
+	selectOption(option: SidebarOption): void {
+		this.selectedOption = option.id;
+		this.updateSelection();
+		if (option.tag || isPlanningOption(option)) void this.openNotes(option);
+		else new Notice(`${option.label}: test action.`);
+	}
+
 	onOpen(): Promise<void> {
 		this.contentEl.empty();
 		this.contentEl.addClass('horizon-sidebar');
 		this.optionButtons.clear();
+		this.projectsToggle = undefined;
+		this.shortcuts = this.addChild(new OptionKeyboardShortcuts(this.contentEl, {
+			isActive: () => this.app.workspace.getActiveViewOfType(HorizonSidebarView) === this,
+			activate: option => this.selectOption(option),
+		}));
 
 		const menu = this.contentEl.createEl('nav', {
 			cls: 'horizon-menu',
@@ -45,6 +67,8 @@ export class HorizonSidebarView extends ItemView {
 		});
 
 		for (const section of SIDEBAR_SECTIONS) {
+			const visibleOptions = section.options.filter(option => !HIDDEN_SIDEBAR_OPTIONS.has(option.id));
+			if (visibleOptions.length === 0) continue;
 			let options: HTMLElement;
 			if (section.label === 'Horizon') {
 				options = menu.createDiv({ cls: 'horizon-options' });
@@ -60,7 +84,7 @@ export class HorizonSidebarView extends ItemView {
 				setIcon(chevron, 'chevron-down');
 				options = group.createDiv({ cls: 'horizon-options' });
 			}
-			for (const option of section.options) {
+			for (const option of visibleOptions) {
 				if (option.id === 'projects') this.addProjects(options, option);
 				else this.addOption(options, option);
 			}
@@ -79,6 +103,9 @@ export class HorizonSidebarView extends ItemView {
 
 	onClose(): Promise<void> {
 		this.optionButtons.clear();
+		if (this.shortcuts) this.removeChild(this.shortcuts);
+		this.shortcuts = undefined;
+		this.projectsToggle = undefined;
 		this.doingProjectsEl = undefined;
 		this.renderVersion++;
 		this.contentEl.empty();
@@ -103,6 +130,8 @@ export class HorizonSidebarView extends ItemView {
 		const chevron = toggle.createSpan({ cls: 'horizon-projects-chevron', attr: { 'aria-hidden': 'true' } });
 		setIcon(chevron, 'chevron-down');
 		this.optionButtons.set(option.id, button);
+		this.labelShortcut(button, option);
+		this.projectsToggle = toggle;
 		this.doingProjectsEl = group.createDiv({ cls: 'horizon-doing-projects' });
 		this.registerDomEvent(this.doingProjectsEl, 'click', event => {
 			const button = (event.target as HTMLElement | null)?.closest<HTMLElement>('button.horizon-doing-project');
@@ -117,9 +146,7 @@ export class HorizonSidebarView extends ItemView {
 		});
 
 		this.registerDomEvent(button, 'click', () => {
-			this.selectedOption = option.id;
-			this.updateSelection();
-			void this.openNotes(option);
+			this.selectOption(option);
 		});
 		this.registerDomEvent(toggle, 'click', () => {
 			const collapsed = !group.hasClass('is-collapsed');
@@ -144,18 +171,34 @@ export class HorizonSidebarView extends ItemView {
 			if (version !== this.renderVersion || container !== this.doingProjectsEl) return;
 			const doing = entries.filter(entry => this.projectStatus(entry) === 'doing');
 			container.empty();
-			for (const entry of doing) {
-				const button = container.createEl('button', {
-					cls: 'horizon-doing-project',
-					attr: {
-						type: 'button',
-						'data-note-path': entry.file.path,
-						...(entry.line === undefined ? {} : { 'data-note-line': String(entry.line) }),
-					},
+			const groups = groupEntriesByParent(doing, entry => {
+				const cache = this.app.metadataCache.getFileCache(entry.file);
+				return parentNotes(cache?.frontmatter?.parent, linkpath => {
+					const parent = this.app.metadataCache.getFirstLinkpathDest(linkpath, entry.file.path);
+					return parent ? { name: parent.basename, path: parent.path, icon: 'sticky-note' } : undefined;
 				});
-				const icon = button.createSpan({ cls: 'horizon-option-icon', attr: { 'aria-hidden': 'true' } });
-				setIcon(icon, 'circle-slash');
-				button.createSpan({ cls: 'horizon-doing-project-label', text: entry.text });
+			});
+			for (const group of groups) {
+				const section = container.createDiv({ cls: 'horizon-sidebar-project-group' });
+				if (group.parent) {
+					const heading = section.createDiv({ cls: 'horizon-sidebar-project-heading' });
+					const icon = heading.createSpan({ cls: 'horizon-sidebar-project-heading-icon', attr: { 'aria-hidden': 'true' } });
+					setIcon(icon, GOALS_ICON);
+					heading.createSpan({ cls: 'horizon-sidebar-project-heading-label', text: group.parent.name });
+				}
+				for (const entry of group.entries) {
+					const button = section.createEl('button', {
+						cls: 'horizon-doing-project',
+						attr: {
+							type: 'button',
+							'data-note-path': entry.file.path,
+							...(entry.line === undefined ? {} : { 'data-note-line': String(entry.line) }),
+						},
+					});
+					const icon = button.createSpan({ cls: 'horizon-option-icon', attr: { 'aria-hidden': 'true' } });
+					setIcon(icon, projectStatusForTags(['doing']).icon);
+					button.createSpan({ cls: 'horizon-doing-project-label', text: entry.text });
+				}
 			}
 		} catch (error) {
 			console.error('horizon: could not load projects', error);
@@ -186,13 +229,16 @@ export class HorizonSidebarView extends ItemView {
 		setIcon(icon, option.icon);
 		button.createSpan({ cls: 'horizon-option-label', text: option.label });
 		this.optionButtons.set(option.id, button);
+		this.labelShortcut(button, option);
 
 		this.registerDomEvent(button, 'click', () => {
-			this.selectedOption = option.id;
-			this.updateSelection();
-			if (option.tag) void this.openNotes(option);
-			else new Notice(`${option.label}: test action.`);
+			this.selectOption(option);
 		});
+	}
+
+	private labelShortcut(button: HTMLElement, option: SidebarOption): void {
+		const key = shortcutForOption(option.id);
+		if (key) button.setAttribute('aria-keyshortcuts', key.toUpperCase());
 	}
 
 	private updateSelection(): void {
@@ -201,6 +247,7 @@ export class HorizonSidebarView extends ItemView {
 			button.toggleClass('is-active', selected);
 			button.setAttribute('aria-pressed', String(selected));
 		}
+		this.projectsToggle?.toggleClass('is-active', this.selectedOption === 'projects');
 	}
 
 }

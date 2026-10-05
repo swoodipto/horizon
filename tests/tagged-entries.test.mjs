@@ -122,8 +122,8 @@ test('parent note icons follow property tags, including nested and uppercase tag
   [['#area'], 'layers-2'], [['#AREA/work'], 'layers-2'],
   [['#goal'], 'horizon-goal'], [['#goal/2026'], 'horizon-goal'],
   [['#project'], 'circle-small'], [['#PROJECT/work'], 'circle-small'],
-  [['#project', '#ready'], 'circle'], [['#project', '#doing'], 'circle-slash'],
-  [['#project', '#completed'], 'circle-check-big'], [['#project', '#backburner'], 'circle-dashed'],
+  [['#project', '#ready'], 'circle'], [['#project', '#doing'], 'circle-chevron-right'],
+  [['#project', '#completed'], 'circle-check-big'], [['#project', '#backburner'], 'circle-stop'], [['#project', '#someday'], 'circle-dashed'],
   [[], 'sticky-note'], [['#areas', '#goals', '#projects', '#other'], 'sticky-note'],
  ]) assert.equal(iconForNoteTags(tags), icon);
 });

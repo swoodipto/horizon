@@ -23,9 +23,9 @@ function appFor(frontmatter = {}, content = '') {
 }
 
 test('menu statuses have the exact requested order and a placeholder icon each', () => {
-	assert.deepEqual(PROJECT_STATUSES.map(status => status.tag), ['todo', 'backburner', 'waiting', 'discuss', 'ready', 'doing', 'completed']);
+	assert.deepEqual(PROJECT_STATUSES.map(status => status.tag), ['todo', 'backburner', 'waiting', 'discuss', 'ready', 'doing', 'someday', 'completed']);
 	assert.ok(PROJECT_STATUSES.every(status => status.icon));
-	assert.deepEqual(PROJECT_STATUSES.map(status => status.icon), ['circle-small', 'circle-dashed', 'clock', 'at-sign', 'circle', 'circle-slash', 'circle-check-big']);
+	assert.deepEqual(PROJECT_STATUSES.map(status => status.icon), ['circle-small', 'circle-stop', 'clock', 'at-sign', 'circle', 'circle-chevron-right', 'circle-dashed', 'circle-check-big']);
 });
 
 test('untagged and legacy todo projects have the default icon; explicit statuses select their own icons', () => {
@@ -133,4 +133,14 @@ test('missing files and unknown menu statuses cannot write', async () => {
 	await assert.rejects(setProjectStatus(app, { path: 'Missing.md' }, 'todo'), /no longer exists/);
 	await assert.rejects(setProjectStatus(app, { path: 'Work.md' }, 'unknown'), /Unknown project status/);
 	assert.deepEqual(calls, []);
+});
+
+test('someday is recognized and replaces previous statuses in note and inline tags', async () => {
+ assert.equal(projectStatusForTags(['project','someday']).icon, 'circle-dashed');
+ assert.equal(projectStatusForTags(['project','backburner']).icon, 'circle-stop');
+ const {app,state}=appFor({tags:['project','backburner','client']});
+ await setProjectStatus(app,{path:'Work.md'},'someday');
+ assert.deepEqual(state.frontmatter.tags,['project','client','someday']);
+ const raw='- Build #project #backburner #client';
+ assert.equal(setLineStatus(raw,{line:0,sourceLine:raw},'someday'),'- Build #project #client #someday');
 });

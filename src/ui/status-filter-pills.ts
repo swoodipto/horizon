@@ -1,6 +1,6 @@
 import { Component, Notice, Platform, setIcon } from 'obsidian';
 import { PROJECT_STATUSES } from './project-status';
-import { normalizeProjectFilter, selectProjectFilter, type ProjectFilter, type ProjectStatusTag } from './project-filter';
+import { cycleProjectFilter, extendProjectFilter, normalizeProjectFilter, selectProjectFilter, type ProjectFilter, type ProjectStatusTag } from './project-filter';
 
 const HOLD_DURATION = 1000;
 const MOVE_TOLERANCE = 10;
@@ -79,7 +79,7 @@ export class StatusFilterPills extends Component {
 			role: 'group', 'aria-label': 'Project status filters',
 			'aria-description': Platform.isMobile
 				? 'Hold a status for one second to toggle multi-select.'
-				: `Select one status, or hold ${Platform.isMacOS ? 'Command' : 'Control'} to toggle multiple statuses.`,
+				: `Select one status, or hold ${Platform.isMacOS ? 'Command' : 'Control'} to toggle multiple statuses. Use Shift with the left or right arrow to add adjacent statuses.`,
 		} });
 		this.row = row;
 		for (const status of statuses) {
@@ -118,6 +118,26 @@ export class StatusFilterPills extends Component {
 		this.mobileMultiSelect = false;
 		if (this.getFilter() !== 'all') this.select('all');
 		else this.syncSelection();
+		return true;
+	}
+
+	step(direction: -1 | 1, multiple = false): boolean {
+		if (!this.row) return false;
+		const buttons = Array.from(this.row.querySelectorAll<HTMLElement>('button.horizon-status-pill'));
+		const tags = buttons.map(button => this.tagFor(button)).filter((tag): tag is ProjectStatusTag => tag !== undefined);
+		if (!tags.length) return false;
+		const filter = multiple ? extendProjectFilter(this.getFilter(), tags, direction)
+			: cycleProjectFilter(this.getFilter(), tags, direction);
+		const selected = filter === 'all' ? [] : tags.filter(tag => filter.includes(tag));
+		const destination = direction === 1 ? selected.at(-1) : selected[0];
+		const button = buttons.find(button => this.tagFor(button) === destination);
+		if (button) {
+			if (this.row.contains(this.row.ownerDocument.activeElement)) button.focus({ preventScroll: true });
+			button.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+		}
+		this.mobileMultiSelect = false;
+		this.cancelHold();
+		this.select(filter);
 		return true;
 	}
 

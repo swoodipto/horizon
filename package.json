@@ -1,7 +1,7 @@
 {
 	"name": "horizon",
 	"version": "1.0.0",
-	"description": "A planning sidebar with test actions for Plan and Big Picture.",
+	"description": "Project planning with calendars, timelines, and note-based organization.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {

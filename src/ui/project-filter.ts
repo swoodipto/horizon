@@ -4,6 +4,26 @@ import type { TaggedEntry, TaggedMetadata } from './tagged-notes';
 export type ProjectStatusTag = typeof PROJECT_STATUSES[number]['tag'];
 export type ProjectFilter = 'all' | ProjectStatusTag[];
 
+/** Cycle visible filters with All at either end; arrows replace multi-selection. */
+export function cycleProjectFilter(filter: ProjectFilter, available: readonly ProjectStatusTag[], direction: -1 | 1): ProjectFilter {
+	if (!available.length) return 'all';
+	const selected = filter === 'all' ? [] : available.filter(tag => filter.includes(tag));
+	const current = direction === 1 ? selected.at(-1) : selected[0];
+	const index = current ? available.indexOf(current) + 1 : 0;
+	const next = (index + direction + available.length + 1) % (available.length + 1);
+	const tag = available[next - 1];
+	return next === 0 || !tag ? 'all' : [tag];
+}
+
+/** Shift arrows add the next visible status in that direction, stopping at the ends. */
+export function extendProjectFilter(filter: ProjectFilter, available: readonly ProjectStatusTag[], direction: -1 | 1): ProjectFilter {
+	const selected = filter === 'all' ? [] : available.filter(tag => filter.includes(tag));
+	const edge = direction === 1 ? selected.at(-1) : selected[0];
+	const next = edge ? available.indexOf(edge) + direction : direction === 1 ? 0 : available.length - 1;
+	const tag = available[next];
+	return tag ? normalizeProjectFilter([...selected, tag]) : filter;
+}
+
 export function normalizeProjectFilter(value: unknown): ProjectFilter {
 	const values: unknown[] = Array.isArray(value) ? value : [value];
 	const selected = PROJECT_STATUSES.filter(status => values.includes(status.tag)).map(status => status.tag);

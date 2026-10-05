@@ -7,6 +7,7 @@ export interface SidebarOption {
 	icon: string;
 	tag?: string;
 	noteIcon?: string;
+	shortcut?: string;
 }
 
 export interface SidebarSection {
@@ -18,17 +19,17 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
 	{
 		label: 'Horizon',
 		options: [
-			{ id: 'life-areas', label: 'Life Areas', icon: 'layers-2', tag: '#area', noteIcon: 'layers-2' },
-			{ id: 'goals', label: 'Goals', icon: 'target', tag: '#goal', noteIcon: GOALS_ICON },
-			{ id: 'projects', label: 'Projects', icon: PROJECTS_ICON, tag: '#project', noteIcon: 'circle-small' },
-			{ id: 'insights', label: 'Insights', icon: 'bar-chart-3' },
+			{ id: 'life-areas', label: 'Areas', icon: 'layers-2', tag: '#area', noteIcon: 'layers-2', shortcut: 'a' },
+			{ id: 'goals', label: 'Goals', icon: 'target', tag: '#goal', noteIcon: GOALS_ICON, shortcut: 'g' },
+			{ id: 'projects', label: 'Projects', icon: PROJECTS_ICON, tag: '#project', noteIcon: 'circle-small', shortcut: 'p' },
+			{ id: 'insights', label: 'Insights', icon: 'bar-chart-3', shortcut: 'i' },
 		],
 	},
 	{
 		label: 'Plan',
 		options: [
-			{ id: 'upcoming', label: 'Upcoming', icon: 'calendar-days' },
-			{ id: 'timeline', label: 'Timeline', icon: 'square-chart-gantt' },
+			{ id: 'upcoming', label: 'Upcoming', icon: 'calendar-days', shortcut: 'u' },
+			{ id: 'timeline', label: 'Timeline', icon: 'square-chart-gantt', shortcut: 't' },
 		],
 	},
 ];

@@ -8,7 +8,7 @@ const code = buildSync({
 		resolveDir: fileURLToPath(new URL('../src/ui/', import.meta.url)) },
 	bundle: true, write: false, format: 'esm',
 }).outputFiles[0].text;
-const { normalizeProjectFilter, toggleProjectFilter, selectProjectFilter, availableProjectStatuses, reconcileProjectFilter, projectFilterLabel, projectEntryStatus, filterProjectEntries, nestTaggedEntries, visibleEntryRelations } =
+const { cycleProjectFilter, normalizeProjectFilter, toggleProjectFilter, selectProjectFilter, availableProjectStatuses, reconcileProjectFilter, projectFilterLabel, projectEntryStatus, filterProjectEntries, nestTaggedEntries, visibleEntryRelations } =
 	await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 
 function entry(name, tags, lineTags = [], line) {
@@ -121,4 +121,16 @@ test('metadata changes prune unavailable selections and reset an entirely stale 
 	assert.equal(reconcileProjectFilter(['waiting', 'doing'], available), 'all');
 	assert.equal(reconcileProjectFilter(['waiting'], available), 'all');
 	assert.equal(reconcileProjectFilter('all', available), 'all');
+});
+
+test('horizontal arrows cycle visible statuses and All in both directions', () => {
+ const available=['todo','doing','someday'];
+ assert.deepEqual(cycleProjectFilter('all',available,1),['todo']);
+ assert.deepEqual(cycleProjectFilter(['todo'],available,1),['doing']);
+ assert.equal(cycleProjectFilter(['someday'],available,1),'all');
+ assert.deepEqual(cycleProjectFilter('all',available,-1),['someday']);
+ assert.equal(cycleProjectFilter(['todo'],available,-1),'all');
+ assert.deepEqual(cycleProjectFilter(['todo','doing'],available,1),['someday']);
+ assert.deepEqual(cycleProjectFilter(['doing','someday'],available,-1),['todo']);
+ assert.equal(cycleProjectFilter('all',[],1),'all');
 });

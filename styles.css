@@ -1,3 +1,99 @@
+/* Horizon controls use item selection; editable fields keep normal text selection. */
+:is(.horizon-sidebar, .horizon-notes, .horizon-planning),
+:is(.horizon-sidebar, .horizon-notes, .horizon-planning) * {
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+:is(.horizon-sidebar, .horizon-notes, .horizon-planning) :is(input, textarea, [contenteditable]:not([contenteditable="false"]), [role="textbox"]),
+:is(.horizon-sidebar, .horizon-notes, .horizon-planning) :is([contenteditable]:not([contenteditable="false"]), [role="textbox"]) * {
+	-webkit-user-select: text;
+	user-select: text;
+}
+
+.view-content.horizon-planning {
+	padding: var(--size-4-6);
+	overflow: auto;
+}
+
+.horizon-planning-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-3);
+	margin-bottom: var(--size-4-3);
+}
+
+.horizon-planning-heading h2 { margin: 0; }
+
+.horizon-planning-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-4-4);
+}
+
+.horizon-planning-toolbar input[type="date"] { width: 145px; }
+.horizon-planning-toolbar select { min-width: 90px; }
+.horizon-planning-icon-button { display: flex; align-items: center; justify-content: center; }
+.horizon-planning-icon-button .svg-icon { width: var(--icon-s); height: var(--icon-s); }
+.horizon-planning-canvas { min-width: 0; }
+
+.horizon-planning-hint {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.horizon-planning-warnings {
+	margin-bottom: var(--size-4-3);
+	padding: var(--size-4-2) var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	color: var(--text-warning);
+}
+
+.horizon-planning-warnings summary,
+.horizon-planning-unscheduled summary { cursor: var(--cursor); font-weight: var(--font-medium); }
+.horizon-planning-warnings ul { padding-inline-start: var(--size-4-4); margin-bottom: 0; }
+.horizon-planning-warnings li { margin-block: var(--size-4-1); }
+.horizon-planning-warnings button { white-space: normal; height: auto; text-align: start; }
+
+.horizon-planning-unscheduled {
+	margin-top: var(--size-4-4);
+	padding-top: var(--size-4-4);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.horizon-planning-undated-list { display: flex; flex-wrap: wrap; gap: var(--size-4-2); }
+.horizon-planning-undated {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	max-width: 100%;
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+
+.horizon-planning-project-title { overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+.horizon-planning-inline-label { color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.horizon-planning-field { display: grid; gap: var(--size-4-2); margin-block: var(--size-4-3); }
+.horizon-planning-field input { width: 100%; }
+.horizon-planning-dependencies { max-height: 220px; overflow: auto; margin-top: var(--size-4-4); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); }
+.horizon-planning-dependency-choice { display: flex; align-items: center; gap: var(--size-4-2); padding: var(--size-4-1); }
+.horizon-planning-editor-warning { color: var(--text-warning); font-size: var(--font-ui-small); }
+.horizon-planning-error { color: var(--text-error); font-size: var(--font-ui-small); }
+.horizon-planning-error:empty { display: none; }
+.horizon-planning-editor-actions { display: flex; justify-content: flex-end; gap: var(--size-4-2); margin-top: var(--size-4-4); }
+
+@media (max-width: 600px) {
+	.view-content.horizon-planning { padding: var(--size-4-3); }
+	.horizon-planning-heading h2 { font-size: var(--h3-size); }
+	.horizon-planning-project-title { max-width: 160px; }
+}
+
 .view-content.horizon-sidebar {
 	padding: var(--size-4-3);
 	background-color: var(--background-secondary);
@@ -108,17 +204,18 @@
 	flex: 0 0 auto;
 	height: auto;
 	min-height: 34px;
-	margin-inline-end: var(--size-4-2);
 	padding: var(--size-4-1) var(--size-4-2);
 	border: 0;
-	border-radius: var(--radius-m);
+	border-radius: var(--radius-xl);
 	box-shadow: none;
 	background: transparent;
 	color: var(--text-muted);
 	cursor: var(--cursor);
 }
 
-.horizon-sidebar button.horizon-projects-toggle:hover {
+.horizon-projects-header:hover .horizon-option,
+.horizon-projects-header:hover .horizon-projects-toggle,
+.horizon-sidebar button.horizon-projects-toggle.is-active {
 	background-color: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
@@ -141,6 +238,39 @@
 	flex-direction: column;
 	gap: 2px;
 	padding: var(--size-4-1) 0 var(--size-4-1) calc(var(--size-4-3) + var(--icon-s) + 10px);
+}
+
+.horizon-sidebar-project-group + .horizon-sidebar-project-group {
+	margin-block-start: var(--size-4-3);
+}
+
+.horizon-sidebar-project-heading {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding-block: var(--size-2-1);
+	color: var(--text-faint);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.horizon-sidebar-project-heading-icon {
+	display: flex;
+	flex-shrink: 0;
+}
+
+.horizon-sidebar-project-heading-icon svg {
+	width: 1em;
+	height: 1em;
+}
+
+.horizon-sidebar-project-heading-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .horizon-projects-menu.is-collapsed .horizon-doing-projects {
@@ -357,11 +487,114 @@
 
 .horizon-project-row {
 	position: relative;
+	--horizon-status-icon-size: var(--icon-m);
+}
+
+.horizon-deadline-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	min-width: 0;
+	line-height: var(--line-height-tight);
+}
+
+.horizon-notes .horizon-deadline-row > a.horizon-note-link {
+	flex: 1;
+	min-width: 0;
+	align-items: center;
+	line-height: var(--line-height-tight);
+}
+
+.horizon-notes button.horizon-note-deadline {
+	display: flex;
+	align-items: center;
+	align-self: stretch;
+	height: auto;
+	margin: 0;
+	gap: var(--size-4-1);
+	flex-shrink: 0;
+	padding: var(--size-4-1) var(--size-4-2);
+	border: 0;
+	border-radius: var(--radius-xl);
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: inherit;
+	line-height: inherit;
+	font-weight: var(--font-medium);
+	white-space: nowrap;
+}
+
+.horizon-notes button.horizon-note-deadline.is-due {
+	color: #F54370;
+}
+
+.horizon-deadline-label {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-1);
+	height: 1lh;
+}
+
+.horizon-deadline-label > span {
+	font-size: var(--font-ui-smaller);
+}
+
+.horizon-deadline-label > span:first-child {
+	display: flex;
+}
+
+.horizon-note-deadline .svg-icon {
+	width: 1.1em;
+	height: 1.1em;
+}
+
+.horizon-notes .horizon-deadline-row:is(:hover, :has(:focus-visible), .has-selection) > :is(a.horizon-note-link, button.horizon-note-deadline) {
+	background-color: var(--background-modifier-hover);
+}
+
+.horizon-notes .horizon-deadline-row:is(:hover, :has(:focus-visible), .has-selection) > a.horizon-note-link {
+	color: var(--text-normal);
+}
+
+.horizon-notes button.horizon-note-deadline:focus-visible {
+	outline: none;
 }
 
 .tooltip.horizon-project-tooltip {
 	max-width: 207px;
 	text-align: left;
+}
+
+.menu-item:has(.horizon-status-menu-label) {
+	padding-inline-start: var(--size-4-3);
+}
+
+.menu-item:has(.horizon-status-menu-label) > .menu-item-icon:first-child {
+	display: none;
+}
+
+.horizon-status-menu-label {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: var(--size-4-3);
+	width: 100%;
+}
+
+.horizon-status-menu-shortcut {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	flex-shrink: 0;
+	width: 1ch;
+	opacity: 0.8;
+}
+
+.horizon-status-menu-icon {
+	display: flex;
+	align-items: center;
+	color: var(--text-muted);
+	flex-shrink: 0;
 }
 
 .horizon-project-icon-placeholder {
@@ -374,6 +607,8 @@
 	inset-inline-start: var(--size-4-2);
 	top: 50%;
 	transform: translateY(-50%);
+	font-size: inherit;
+	line-height: inherit;
 	width: var(--icon-m);
 	height: var(--icon-m);
 	padding: 0;
@@ -385,15 +620,90 @@
 	inset-inline-start: calc(var(--size-4-2) + var(--icon-s) + var(--size-2-3) + var(--size-4-2));
 }
 
-.horizon-project-row:hover > a.horizon-note-link {
-	background-color: var(--nav-item-background-hover);
-	color: var(--nav-item-color-hover);
-}
-
 .is-mobile .horizon-notes .horizon-project-icon-placeholder,
 .is-mobile .horizon-notes button.horizon-project-status {
 	width: var(--icon-s);
 	height: var(--icon-s);
+}
+
+.is-mobile .horizon-project-row {
+	--horizon-status-icon-size: var(--icon-s);
+}
+
+.horizon-notes .horizon-deadline-row :is(span.horizon-note-icon, .horizon-note-branch) {
+	height: 1lh;
+	align-items: center;
+}
+
+.horizon-status-group {
+	margin-block-start: var(--size-4-8);
+}
+
+.horizon-later-section:not([hidden]) {
+	display: flow-root;
+}
+
+.horizon-later-section.is-animating {
+	overflow: hidden;
+}
+
+.horizon-notes button.horizon-later-toggle {
+	margin-block-start: var(--size-4-8);
+	margin-inline-start: calc(-1 * var(--size-4-2));
+	padding: var(--size-4-1) var(--size-4-2);
+	border-radius: var(--radius-xl);
+	height: auto;
+	border: 0;
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+}
+
+.horizon-notes button.horizon-later-toggle:hover {
+	background: var(--background-modifier-hover);
+}
+
+.horizon-notes .horizon-status-pills + .horizon-note-list {
+	margin-block-start: var(--size-4-8);
+}
+
+.horizon-notes h4.horizon-status-heading {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin: 0 0 var(--size-4-3);
+	padding: 0 0 var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	line-height: var(--line-height-tight);
+	color: var(--text-normal);
+}
+
+.horizon-notes .horizon-status-group > .horizon-note-list {
+	margin-block-start: var(--size-4-2);
+}
+
+.horizon-note-start {
+	display: flex;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 1lh;
+}
+
+.horizon-note-start-label {
+	width: 7ch;
+	text-align: center;
+	padding: 0 var(--size-2-3);
+	border-radius: var(--radius-s);
+	background-color: color-mix(in srgb, var(--text-normal) 8%, transparent);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+	line-height: var(--line-height-tight);
+	white-space: nowrap;
 }
 
 .horizon-note-text {
@@ -475,15 +785,20 @@
 	text-decoration: none;
 }
 
-.horizon-notes a.horizon-note-link:hover {
+.horizon-notes a.horizon-note-link:hover,
+.horizon-notes a.horizon-note-link.is-selected,
+.horizon-notes a.horizon-note-link:focus-visible {
 	background-color: var(--nav-item-background-hover);
 	color: var(--nav-item-color-hover);
 	text-decoration: none;
 }
 
 .horizon-notes a.horizon-note-link:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: -2px;
+	outline: none;
+}
+
+.view-content.horizon-notes:focus {
+	outline: none;
 }
 
 .horizon-status-pills {
@@ -570,4 +885,335 @@
 	-webkit-user-select: none;
 	user-select: none;
 	-webkit-touch-callout: none;
+}
+
+
+/* Native project calendars. Calendar bars are inclusive all-day ranges. */
+.horizon-calendar {
+	--horizon-calendar-columns: 7;
+	--horizon-calendar-lanes: 2;
+	--horizon-calendar-row-height: 30px;
+	color: var(--text-normal);
+	min-width: 0;
+}
+.horizon-calendar-weekdays, .horizon-calendar-days, .horizon-calendar-events {
+	display: grid;
+	grid-template-columns: repeat(var(--horizon-calendar-columns), minmax(0, 1fr));
+}
+.horizon-calendar-weekdays {
+	padding: 8px 0;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	text-align: center;
+}
+.horizon-calendar-weeks { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); overflow: hidden; }
+.horizon-calendar-week { position: relative; min-height: 106px; }
+.horizon-calendar-week + .horizon-calendar-week { border-top: 1px solid var(--background-modifier-border); }
+.horizon-calendar-days { position: absolute; inset: 0; }
+.horizon-calendar-day-cell { position: relative; min-width: 0; cursor: crosshair; }
+.horizon-calendar-day-cell + .horizon-calendar-day-cell { border-left: 1px solid var(--background-modifier-border); }
+.horizon-calendar-day-cell.is-outside-month { background: var(--background-secondary); }
+.horizon-calendar-day-cell.is-today { background: color-mix(in srgb, var(--interactive-accent) 5%, var(--background-primary)); }
+.horizon-calendar-day-cell.is-selected-date { background: color-mix(in srgb, var(--interactive-accent) 17%, var(--background-primary)); }
+.horizon-calendar-day-cell button.horizon-calendar-date {
+	position: absolute;
+	top: 4px;
+	left: 5px;
+	border: 0;
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	height: 24px;
+	min-height: 24px;
+	padding: 2px 6px;
+}
+.horizon-calendar-day-cell.is-outside-month .horizon-calendar-date { color: var(--text-faint); }
+.horizon-calendar-day-cell.is-today button.horizon-calendar-date { border-radius: var(--radius-s); background: var(--interactive-accent); color: var(--text-on-accent); }
+.horizon-calendar-day-cell button.horizon-calendar-add {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	height: 24px;
+	min-height: 24px;
+	width: 24px;
+	padding: 0;
+	border: 0;
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-muted);
+	opacity: 0;
+}
+.horizon-calendar-day-cell:hover .horizon-calendar-add, .horizon-calendar-day-cell:focus-within .horizon-calendar-add { opacity: 1; }
+.horizon-calendar-events {
+	position: relative;
+	pointer-events: none;
+	padding: 35px 0 8px;
+	grid-template-rows: repeat(var(--horizon-calendar-lanes), var(--horizon-calendar-row-height));
+	gap: 3px 0;
+}
+.horizon-calendar-project {
+	--horizon-project-color: var(--interactive-accent);
+	position: relative;
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	margin: 0 3px;
+	border-radius: var(--radius-s);
+	border: 1px solid color-mix(in srgb, var(--horizon-project-color) 40%, var(--background-modifier-border));
+	border-left: 3px solid var(--horizon-project-color);
+	background: color-mix(in srgb, var(--horizon-project-color) 17%, var(--background-primary));
+	pointer-events: auto;
+	font-size: var(--font-ui-small);
+}
+.horizon-calendar-project.continues-before { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left-width: 1px; }
+.horizon-calendar-project.continues-after { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.horizon-calendar-project.has-warning { outline: 1px solid var(--text-warning); outline-offset: -1px; }
+.horizon-calendar-project button { height: 100%; min-height: 0; padding: 0; border: 0; box-shadow: none; background: transparent; color: inherit; }
+.horizon-calendar-project button.horizon-calendar-project-label {
+	flex: 1;
+	justify-content: flex-start;
+	text-align: left;
+	padding: 0 5px;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: block;
+	cursor: grab;
+}
+.horizon-calendar-project-label.is-dragging { opacity: 0.45; cursor: grabbing; }
+.horizon-calendar-project button.horizon-calendar-open { width: 20px; flex: 0 0 20px; font-size: 13px; opacity: 0.65; }
+.horizon-calendar-project .horizon-calendar-open:hover { opacity: 1; }
+.horizon-calendar-deadline, .horizon-calendar-warning { flex: 0 0 auto; padding-right: 3px; font-size: 11px; }
+.horizon-calendar-warning { color: var(--text-warning); font-weight: var(--font-bold); }
+.horizon-calendar-deadline { color: var(--horizon-project-color); }
+.horizon-calendar-project button.horizon-calendar-edge { width: 6px; flex: 0 0 6px; cursor: ew-resize; touch-action: none; }
+.horizon-calendar-edge:hover, .horizon-calendar-edge:focus-visible { background: var(--horizon-project-color) !important; }
+.horizon-calendar-help { margin-top: 12px; color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.5; }
+.horizon-calendar-live { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.horizon-calendar-mode-day .horizon-calendar-week, .horizon-calendar-mode-four-days .horizon-calendar-week, .horizon-calendar-mode-week .horizon-calendar-week { min-height: 240px; }
+.horizon-calendar-year-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(235px, 1fr)); gap: 16px; }
+.horizon-calendar-mini-month { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); padding: 12px; }
+.horizon-calendar-mini-month button.horizon-calendar-month-title { border: 0; box-shadow: none; padding: 0 4px; background: transparent; margin-bottom: 8px; font-weight: var(--font-semibold); }
+.horizon-calendar-mini-weekdays, .horizon-calendar-mini-dates { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; gap: 3px; }
+.horizon-calendar-mini-weekdays { font-size: var(--font-ui-smaller); color: var(--text-muted); margin-bottom: 6px; }
+.horizon-calendar-mini-month button.horizon-calendar-mini-date { position: relative; min-height: 29px; height: 29px; min-width: 0; padding: 0; font-size: var(--font-ui-small); border: 0; box-shadow: none; background: transparent; }
+.horizon-calendar-mini-date.is-outside-month { opacity: 0.3; }
+.horizon-calendar-mini-date.has-projects { background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary)) !important; }
+.horizon-calendar-mini-date.has-deadline { box-shadow: inset 0 -2px 0 var(--interactive-accent) !important; }
+.horizon-calendar-mini-date.has-warning { box-shadow: inset 0 -2px 0 var(--text-warning) !important; }
+.horizon-calendar-mini-date.is-today { background: var(--interactive-accent) !important; color: var(--text-on-accent); }
+.horizon-calendar-mini-date.is-selected-date { outline: 2px solid var(--interactive-accent); }
+.horizon-calendar-mini-count { position: absolute; bottom: 0; right: 2px; font-size: 8px; color: var(--text-muted); }
+@media (max-width: 700px) {
+	.horizon-calendar-mode-month, .horizon-calendar-mode-week, .horizon-calendar-mode-four-days { min-width: 650px; }
+	.horizon-calendar-day-cell button.horizon-calendar-add { opacity: 0.65; }
+	.horizon-calendar-year-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+}
+
+.horizon-calendar-project.is-completed { opacity: 0.65; }
+.horizon-calendar-project.is-completed .horizon-calendar-project-label { text-decoration: line-through; }
+
+/* Custom project timeline: dates use civil-day widths and native theme colors. */
+.horizon-timeline {
+	position: relative;
+	width: 100%;
+	min-height: 360px;
+	max-height: min(70vh, 850px);
+	overflow: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	overscroll-behavior: contain;
+	scrollbar-gutter: stable;
+	-webkit-user-select: none;
+	user-select: none;
+}
+.horizon-timeline:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+.horizon-timeline-canvas {
+	position: relative;
+	width: calc(var(--horizon-timeline-names) + var(--horizon-timeline-width));
+	min-height: 340px;
+}
+.horizon-timeline-axis {
+	position: sticky;
+	top: 0;
+	z-index: 6;
+	display: flex;
+	height: var(--horizon-timeline-axis);
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+.horizon-timeline-axis-name {
+	position: sticky;
+	left: 0;
+	z-index: 7;
+	display: flex;
+	align-items: center;
+	flex: 0 0 var(--horizon-timeline-names);
+	padding: 12px;
+	border-right: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+.horizon-timeline-axis-track {
+	flex: 0 0 var(--horizon-timeline-width);
+	min-width: 0;
+	overflow: hidden;
+}
+.horizon-timeline-axis-upper, .horizon-timeline-axis-lower {
+	position: relative;
+	height: 32px;
+}
+.horizon-timeline-axis-upper { border-bottom: 1px solid var(--background-modifier-border); }
+.horizon-timeline-axis-period, .horizon-timeline-axis-tick {
+	position: absolute;
+	top: 0;
+	display: block;
+	height: 32px;
+	padding: 7px 4px;
+	border-left: 1px solid var(--background-modifier-border);
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: clip;
+}
+.horizon-timeline-axis-period { font-weight: var(--font-semibold); }
+.horizon-timeline-axis-tick { text-align: center; }
+.horizon-timeline-row {
+	display: flex;
+	height: var(--horizon-timeline-row);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+.horizon-timeline-name {
+	position: sticky;
+	left: 0;
+	z-index: 4;
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	flex: 0 0 var(--horizon-timeline-names);
+	min-width: 0;
+	padding: 6px 10px;
+	border-right: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+}
+.horizon-timeline button.horizon-timeline-title {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding: 3px 0;
+	border: 0;
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	text-align: left;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	cursor: pointer;
+}
+.horizon-timeline button.horizon-timeline-plan {
+	flex: 0 0 auto;
+	padding: 2px 5px;
+	height: auto;
+	min-height: 26px;
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: none;
+	background: var(--background-primary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+.horizon-timeline-warning { flex: 0 0 auto; color: var(--text-warning); font-size: 13px; }
+.horizon-timeline-track {
+	position: relative;
+	flex: 0 0 var(--horizon-timeline-width);
+	background-image: linear-gradient(to right, var(--background-modifier-border) 1px, transparent 1px);
+	background-size: var(--horizon-timeline-grid) 100%;
+	cursor: grab;
+}
+.horizon-timeline-unplanned {
+	position: sticky;
+	left: calc(var(--horizon-timeline-names) + 12px);
+	display: inline-block;
+	padding: 16px 12px;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	pointer-events: none;
+}
+.horizon-timeline .horizon-timeline-bar {
+	position: absolute;
+	top: 12px;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	height: 24px;
+	min-height: 24px;
+	padding: 0 10px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	box-shadow: none;
+	background: var(--horizon-project-color, var(--interactive-accent));
+	color: var(--text-on-accent);
+	font-size: var(--font-ui-smaller);
+	text-align: left;
+	cursor: grab;
+	touch-action: pan-y;
+}
+.horizon-timeline .horizon-timeline-bar.is-completed { opacity: 0.5; }
+.horizon-timeline .horizon-timeline-bar.has-warning { outline: 2px solid var(--text-warning); outline-offset: 1px; }
+.horizon-timeline-bar-label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+.horizon-timeline .horizon-timeline-bar.is-single-day { padding: 0; border-radius: 5px; }
+.horizon-timeline-bar.is-single-day .horizon-timeline-bar-label { visibility: hidden; }
+.horizon-timeline .horizon-timeline-bar.continues-before { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.horizon-timeline .horizon-timeline-bar.continues-after { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.horizon-timeline-handle {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 8px;
+	cursor: ew-resize;
+	touch-action: none;
+}
+.horizon-timeline-handle-start { left: 0; }
+.horizon-timeline-handle-deadline { right: 0; }
+.horizon-timeline-handle:hover { background: rgb(255 255 255 / 25%); }
+.horizon-timeline-current-day {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	z-index: 1;
+	width: 1px;
+	background: var(--interactive-accent);
+	opacity: 0.5;
+	pointer-events: none;
+}
+.horizon-timeline-dependencies {
+	position: absolute;
+	left: var(--horizon-timeline-names);
+	top: var(--horizon-timeline-axis);
+	z-index: 3;
+	overflow: hidden;
+	pointer-events: none;
+}
+.horizon-timeline-dependency { fill: none; stroke: var(--text-muted); stroke-width: 1.5; opacity: 0.65; }
+.horizon-timeline-dependency.is-conflict { stroke: var(--text-warning); }
+.horizon-timeline.is-panning, .horizon-timeline.is-panning * { cursor: grabbing; }
+.horizon-timeline.is-selecting, .horizon-timeline.is-selecting .horizon-timeline-track { cursor: crosshair; }
+.horizon-timeline .horizon-timeline-preview {
+	z-index: 5;
+	border: 1px dashed var(--text-on-accent);
+	opacity: 0.8;
+	pointer-events: none;
+}
+.horizon-timeline button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+@media (max-width: 650px) {
+	.horizon-timeline { min-height: 300px; }
+	.horizon-timeline-name, .horizon-timeline-axis-name { padding-inline: 6px; }
 }

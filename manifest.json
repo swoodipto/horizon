@@ -3,7 +3,7 @@
 	"name": "horizon",
 	"version": "1.0.0",
 	"minAppVersion": "1.7.2",
-	"description": "A planning sidebar with test actions for Plan and Big Picture.",
+	"description": "Project planning with calendars, timelines, and note-based organization.",
 	"author": "Obsidian",
 	"authorUrl": "https://obsidian.md",
 	"fundingUrl": "https://obsidian.md/pricing",

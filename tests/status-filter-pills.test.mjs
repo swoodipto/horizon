@@ -43,6 +43,7 @@ class Element extends EventTarget {
 	closest() { if (this.tagName === 'BUTTON') return this; return this.parent?.closest(); }
 	contains(child) { return child === this || this.children.some(item => item.contains(child)); }
 	focus() { this.ownerDocument.activeElement = this; }
+	scrollIntoView() { this.scrolled = true; }
 	empty() { this.children.forEach(child => child.parent = undefined); this.children = []; }
 }
 function fixture({ mobile = false, mac = true, initial = 'all' } = {}) {
@@ -194,4 +195,30 @@ test('a single available status does not render a filter row', () => {
 	f.pills.render(f.root, [{ tag: 'doing', icon: 'circle' }]);
 	assert.equal(f.root.children.length, 0);
 	f.pills.unload();
+});
+
+test('arrow stepping selects filters, scrolls the pill and preserves pill focus through redraw', () => {
+ const f=fixture(); const first=f.button('todo'); first.focus();
+ assert.equal(f.pills.step(1),true); assert.deepEqual(f.filter(),['todo']);
+ assert.equal(first.scrolled,true);assert.equal(f.doc.activeElement,f.button('todo'));
+ f.pills.step(1);assert.deepEqual(f.filter(),['backburner']);assert.equal(f.doc.activeElement,f.button('backburner'));
+ f.pills.step(-1);f.pills.step(-1);assert.equal(f.filter(),'all');
+ f.pills.reset();assert.equal(f.pills.step(1),false);
+});
+
+test('Shift arrows add filters in either direction and plain arrows resume single selection', () => {
+ const f=fixture({initial:['backburner']});f.button('backburner').focus();
+ f.pills.step(1,true);assert.deepEqual(f.filter(),['backburner','waiting']);
+ assert.equal(f.doc.activeElement,f.button('waiting'));
+ f.pills.step(1,true);assert.deepEqual(f.filter(),['backburner','waiting','doing']);
+ f.pills.step(1,true);assert.deepEqual(f.filter(),['backburner','waiting','doing']);
+ f.pills.step(-1,true);assert.deepEqual(f.filter(),['todo','backburner','waiting','doing']);
+ assert.equal(f.doc.activeElement,f.button('todo'));
+ f.pills.step(-1,true);assert.deepEqual(f.filter(),['todo','backburner','waiting','doing']);
+ f.pills.step(1);assert.equal(f.filter(),'all');
+ f.pills.step(-1,true);assert.deepEqual(f.filter(),['doing']);
+ f.pills.step(-1,true);assert.deepEqual(f.filter(),['waiting','doing']);
+ f.pills.step(-1);assert.deepEqual(f.filter(),['backburner']);
+ f.pills.step(1);assert.deepEqual(f.filter(),['waiting']);
+ f.pills.unload();
 });

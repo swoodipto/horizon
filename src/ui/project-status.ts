@@ -2,11 +2,12 @@ import type { App } from 'obsidian';
 
 export const PROJECT_STATUSES = [
 	{ tag: 'todo', icon: 'circle-small' },
-	{ tag: 'backburner', icon: 'circle-dashed' },
+	{ tag: 'backburner', icon: 'circle-stop' },
 	{ tag: 'waiting', icon: 'clock' },
 	{ tag: 'discuss', icon: 'at-sign' },
 	{ tag: 'ready', icon: 'circle' },
-	{ tag: 'doing', icon: 'circle-slash' },
+	{ tag: 'doing', icon: 'circle-chevron-right' },
+	{ tag: 'someday', icon: 'circle-dashed' },
 	{ tag: 'completed', icon: 'circle-check-big' },
 ] as const;
 

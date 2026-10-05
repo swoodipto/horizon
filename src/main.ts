@@ -8,6 +8,9 @@ import { openNoteInCurrentTab } from './ui/open-note';
 import { DEFAULT_SETTINGS, HorizonSettings, normalizeSettings } from './settings';
 import { HorizonSettingsTab } from './ui/settings-tab';
 import { registerIcons } from './ui/icons';
+import { isPlanningOption } from './planning/option';
+import { registerPlanning } from './planning/register';
+import { HORIZON_PLANNING_VIEW_TYPE } from './planning/view';
 
 export default class HorizonPlugin extends Plugin {
 	settings: HorizonSettings = { ...DEFAULT_SETTINGS };
@@ -31,7 +34,10 @@ export default class HorizonPlugin extends Plugin {
 			(leaf) => new HorizonSidebarView(leaf, (option) => this.openNotes(option),
 				(path, line) => this.openProject(path, line)),
 		);
-		this.registerView(HORIZON_NOTES_VIEW_TYPE, (leaf) => new HorizonNotesView(leaf, () => this.settings));
+		this.registerView(HORIZON_NOTES_VIEW_TYPE, (leaf) => new HorizonNotesView(
+			leaf, () => this.settings, option => this.selectOption(option),
+		));
+		registerPlanning(this, option => this.selectOption(option));
 		this.addSettingTab(new HorizonSettingsTab(this.app, this));
 
 		this.addCommand({
@@ -63,9 +69,18 @@ export default class HorizonPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
+	private selectOption(option: SidebarOption): void {
+		const sidebar = this.app.workspace.getLeavesOfType(HORIZON_VIEW_TYPE)
+			.map(leaf => leaf.view).find(view => view instanceof HorizonSidebarView);
+		if (sidebar) sidebar.selectOption(option);
+		else if (option.tag || isPlanningOption(option)) void this.openNotes(option);
+		else new Notice(`${option.label}: test action.`);
+	}
+
 	private openNotes(option: SidebarOption): Promise<void> {
 		this.notesOperation = this.notesOperation.then(() =>
-			openNotesInCenter(this.app.workspace, HORIZON_NOTES_VIEW_TYPE, option.id),
+			openNotesInCenter(this.app.workspace,
+				isPlanningOption(option) ? HORIZON_PLANNING_VIEW_TYPE : HORIZON_NOTES_VIEW_TYPE, option.id),
 		).catch((error: unknown) => {
 			console.error('horizon: could not open the note list', error);
 			new Notice('Could not open the note list.');
