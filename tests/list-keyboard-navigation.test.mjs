@@ -140,6 +140,23 @@ test('arrows visit flattened nested rows, clamp at ends and reveal the focused l
 	f.navigation.unload();
 });
 
+test('external navigation highlights and reveals the exact parent goal without opening it', () => {
+	const f = fixture();
+	const note = f.row('goal.md');
+	const inline = f.row('goal.md', { line: 8 });
+	assert.equal(f.navigation.selectEntry('goal.md', 8), true);
+	assert.equal(f.doc.activeElement, inline.link);
+	assert.equal(inline.link.getAttribute('class')?.includes('is-selected'), true);
+	assert.equal(note.link.getAttribute('class')?.includes('is-selected'), false);
+	assert.deepEqual(inline.link.scrollCalls.at(-1), { block: 'nearest', inline: 'nearest' });
+	assert.equal(f.navigation.selectEntry('goal.md'), true);
+	assert.equal(f.doc.activeElement, note.link);
+	assert.equal(inline.link.getAttribute('class')?.includes('is-selected'), false);
+	assert.equal(f.navigation.selectEntry('missing.md'), false);
+	assert.equal(note.link.clicks + inline.link.clicks, 0);
+	f.navigation.unload();
+});
+
 test('an active root, heading or document body starts at the first or last row', () => {
 	const f = fixture();
 	const heading = f.root.append('h3');

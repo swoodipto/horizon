@@ -168,11 +168,11 @@
 	cursor: var(--cursor);
 }
 
-.horizon-projects-menu {
+.horizon-sidebar-expandable {
 	position: relative;
 }
 
-.horizon-projects-menu:not(.is-collapsed)::after {
+.horizon-sidebar-expandable.has-entries:not(.is-collapsed)::after {
 	content: "";
 	position: absolute;
 	inset-block: 27px var(--size-4-1);
@@ -186,18 +186,18 @@
 	pointer-events: none;
 }
 
-.horizon-projects-header {
+.horizon-sidebar-expandable-header {
 	display: flex;
 	align-items: stretch;
 	gap: var(--size-2-1);
 }
 
-.horizon-projects-header .horizon-option {
+.horizon-sidebar-expandable-header .horizon-option {
 	min-width: 0;
 	flex: 1 1 auto;
 }
 
-.horizon-sidebar button.horizon-projects-toggle {
+.horizon-sidebar button.horizon-sidebar-toggle {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -213,27 +213,27 @@
 	cursor: var(--cursor);
 }
 
-.horizon-projects-header:hover .horizon-option,
-.horizon-projects-header:hover .horizon-projects-toggle,
-.horizon-sidebar button.horizon-projects-toggle.is-active {
+.horizon-sidebar-expandable-header:hover .horizon-option,
+.horizon-sidebar-expandable-header:hover .horizon-sidebar-toggle,
+.horizon-sidebar button.horizon-sidebar-toggle.is-active {
 	background-color: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
 
-.horizon-projects-chevron {
+.horizon-sidebar-chevron {
 	display: flex;
 }
 
-.horizon-projects-chevron .svg-icon {
+.horizon-sidebar-chevron .svg-icon {
 	width: var(--icon-s);
 	height: var(--icon-s);
 }
 
-.horizon-projects-menu.is-collapsed .horizon-projects-chevron {
+.horizon-sidebar-expandable.is-collapsed .horizon-sidebar-chevron {
 	transform: rotate(-90deg);
 }
 
-.horizon-doing-projects {
+.horizon-sidebar-entries {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
@@ -259,8 +259,98 @@
 
 .horizon-sidebar-project-heading-icon {
 	display: flex;
+	align-items: center;
+	justify-content: center;
 	flex-shrink: 0;
+	width: var(--icon-s);
+	height: var(--icon-s);
 }
+
+/* Insights uses the shared native results wrapper and theme width contract. */
+.horizon-insights-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+	gap: var(--size-4-6);
+}
+
+.horizon-insights-goal { min-width: 0; }
+.horizon-insights-goal-heading {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-4-2);
+	margin-block-end: var(--size-4-2);
+	font-size: var(--font-ui-small);
+}
+.horizon-insights-goal-link {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--text-normal);
+	font-weight: var(--font-medium);
+}
+.horizon-insights-percentage { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.horizon-insights-card {
+	--horizon-graph-scope: #929295;
+	--horizon-graph-started: #e2bc67;
+	--horizon-graph-completed: #7c79e8;
+	--horizon-graph-deadline: #f54370;
+	padding: var(--size-4-4);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-l);
+	background: var(--background-secondary);
+	font-family: var(--font-interface);
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-tight);
+}
+.theme-light .horizon-insights-card {
+	--horizon-graph-scope: #727278;
+	--horizon-graph-started: #a67b21;
+	--horizon-graph-completed: #6964d6;
+}
+.horizon-insights-card-title { color: var(--text-normal); font-weight: var(--font-medium); }
+.horizon-insights-metrics { display: grid; grid-template-columns: repeat(3, 1fr); margin-block: var(--size-4-5); gap: var(--size-4-2); }
+.horizon-insights-metric { display: flex; flex-direction: column; gap: var(--size-4-1); font-size: var(--font-ui-smaller); }
+.horizon-insights-metric span { color: inherit; }
+.horizon-insights-metric strong { font-size: var(--font-ui-large); font-weight: var(--font-normal); font-variant-numeric: tabular-nums; }
+.horizon-insights-scope { color: var(--horizon-graph-scope); }
+.horizon-insights-started { color: var(--horizon-graph-started); }
+.horizon-insights-completed { color: var(--horizon-graph-completed); }
+.horizon-insights-plot { position: relative; touch-action: pan-y; outline-offset: 3px; }
+.horizon-insights-plot svg { display: block; width: 100%; overflow: visible; }
+.horizon-insights-line { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.horizon-insights-point { fill: currentColor; stroke: none; }
+.horizon-insights-completion-bar { fill: var(--horizon-graph-completed); opacity: .24; }
+.horizon-insights-projection { stroke-dasharray: 2 4; opacity: .8; }
+.horizon-insights-baseline { stroke: var(--background-modifier-border); stroke-width: 1; }
+.horizon-insights-deadline { stroke: var(--horizon-graph-deadline); stroke-width: 1; stroke-dasharray: 2 3; }
+.horizon-insights-crosshair { stroke: var(--text-faint); stroke-width: 1; stroke-dasharray: 2 3; }
+.horizon-insights-tooltip {
+	position: absolute;
+	inset-inline: var(--size-4-2);
+	top: var(--size-4-2);
+	z-index: 1;
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	box-shadow: var(--shadow-s);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+	pointer-events: none;
+}
+.horizon-insights-tooltip[hidden], .horizon-insights-empty[hidden] { display: none; }
+.horizon-insights-axis { display: flex; justify-content: space-between; gap: var(--size-4-2); margin-block-start: var(--size-4-2); color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.horizon-insights-estimate { margin-block-start: var(--size-4-3); color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.horizon-insights-history-label { margin-block-start: var(--size-4-1); color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.horizon-insights-values { margin-block-start: var(--size-4-2); color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.horizon-insights-values summary { cursor: var(--cursor); }
+.horizon-insights-values > div { max-height: 240px; overflow: auto; }
+.horizon-insights-values table { width: 100%; font-size: var(--font-ui-smaller); }
+.horizon-insights-metric-explanation { margin-block: var(--size-4-2); line-height: 1.4; }
+.horizon-insights-empty { color: var(--text-muted); }
 
 .horizon-sidebar-project-heading-icon svg {
 	width: 1em;
@@ -273,7 +363,41 @@
 	white-space: nowrap;
 }
 
-.horizon-projects-menu.is-collapsed .horizon-doing-projects {
+.horizon-sidebar-goal-children {
+	position: relative;
+	margin-inline-start: var(--size-4-3);
+	padding-inline-start: var(--size-4-2);
+}
+
+.horizon-sidebar-goal-children::before {
+	content: "";
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: calc(0px - var(--size-4-3));
+	width: var(--icon-s);
+	background: linear-gradient(to right,
+		transparent calc(50% - 0.5px),
+		var(--background-modifier-border) calc(50% - 0.5px),
+		var(--background-modifier-border) calc(50% + 0.5px),
+		transparent calc(50% + 0.5px));
+	pointer-events: none;
+}
+
+.horizon-sidebar-goal-children .horizon-sidebar-goal-children {
+	margin-inline-start: calc(var(--size-4-3) + var(--size-4-2) + var(--size-2-1));
+}
+
+.horizon-sidebar-goal-children .horizon-sidebar-goal-children::before {
+	inset-inline-start: calc(0px - var(--size-4-2) - var(--size-2-1));
+}
+
+.horizon-sidebar .horizon-sidebar-goal-children button.horizon-sidebar-entry,
+.is-mobile .horizon-sidebar .horizon-sidebar-goal-children button.horizon-sidebar-entry {
+	width: 100%;
+	margin-inline-start: 0;
+}
+
+.horizon-sidebar-expandable.is-collapsed .horizon-sidebar-entries {
 	display: none;
 }
 
@@ -283,16 +407,16 @@
 	font-size: var(--font-ui-smaller);
 }
 
-.horizon-sidebar button.horizon-doing-project {
+.horizon-sidebar button.horizon-sidebar-entry {
 	display: flex;
 	align-items: center;
 	justify-content: flex-start;
 	gap: var(--size-4-2);
-	width: calc(100% + var(--size-4-2));
+	width: calc(100% + var(--size-4-3));
 	min-height: 30px;
 	margin: 0;
-	margin-inline-start: calc(0px - var(--size-4-2));
-	padding: var(--size-2-2) var(--size-4-3) var(--size-2-2) var(--size-4-2);
+	margin-inline-start: calc(0px - var(--size-4-3));
+	padding: var(--size-4-1) var(--size-4-3);
 	border: 0;
 	border-radius: var(--radius-m);
 	box-shadow: none;
@@ -303,12 +427,33 @@
 	text-align: left;
 }
 
-.horizon-sidebar button.horizon-doing-project:hover {
+.horizon-sidebar button.horizon-sidebar-entry:hover {
 	background-color: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
 
-.horizon-doing-project-label {
+.is-mobile .horizon-sidebar button.horizon-option,
+.is-mobile .horizon-sidebar button.horizon-sidebar-entry {
+	padding: var(--size-4-3) var(--size-4-4);
+}
+
+.is-mobile .horizon-sidebar-entries {
+	padding-block: var(--size-2-1);
+	padding-inline-start: calc(var(--size-4-4) + var(--icon-s) + 10px);
+}
+
+.is-mobile .horizon-sidebar button.horizon-sidebar-entry {
+	width: calc(100% + var(--size-4-4));
+	margin-inline-start: calc(0px - var(--size-4-4));
+}
+
+.is-mobile .horizon-sidebar-expandable.has-entries:not(.is-collapsed)::after {
+	inset-block-start: calc(27px + var(--size-4-2));
+	inset-block-end: var(--size-2-1);
+	inset-inline-start: var(--size-4-4);
+}
+
+.horizon-sidebar-entry-label {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -345,8 +490,9 @@
 
 .horizon-section-heading:focus-visible,
 .horizon-sidebar button.horizon-option:focus-visible,
-.horizon-sidebar button.horizon-projects-toggle:focus-visible,
-.horizon-sidebar button.horizon-doing-project:focus-visible {
+.horizon-sidebar button.horizon-sidebar-toggle:focus-visible,
+.horizon-sidebar button.horizon-sidebar-entry:focus-visible,
+.horizon-sidebar button.horizon-active-subgoals:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: -2px;
 }
@@ -650,6 +796,15 @@
 .horizon-notes button.horizon-later-toggle {
 	margin-block-start: var(--size-4-8);
 	margin-inline-start: calc(-1 * var(--size-4-2));
+}
+
+.horizon-sidebar button.horizon-active-subgoals {
+	margin-block-start: var(--size-2-1);
+	margin-inline-start: calc(-1 * var(--size-4-2));
+}
+
+.horizon-notes button.horizon-later-toggle,
+.horizon-sidebar button.horizon-active-subgoals {
 	padding: var(--size-4-1) var(--size-4-2);
 	border-radius: var(--radius-xl);
 	height: auto;
@@ -661,7 +816,13 @@
 	font-weight: var(--font-medium);
 }
 
-.horizon-notes button.horizon-later-toggle:hover {
+.horizon-sidebar button.horizon-active-subgoals {
+	padding-inline: calc(var(--size-4-2) + var(--size-4-2) - var(--size-2-1));
+	color: var(--text-faint);
+}
+
+.horizon-notes button.horizon-later-toggle:hover,
+.horizon-sidebar button.horizon-active-subgoals:hover {
 	background: var(--background-modifier-hover);
 }
 

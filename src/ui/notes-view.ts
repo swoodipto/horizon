@@ -1,10 +1,9 @@
 import { debounce, ItemView, Notice, parseFrontMatterTags, setIcon, ViewStateResult, WorkspaceLeaf } from 'obsidian';
 import { SIDEBAR_SECTIONS, SidebarOption } from './sidebar-options';
 import { DEPENDENT_ICON, HORIZON_ICON, PARENT_CHILD_ICON } from './icons';
-import { findTaggedEntries, iconForNoteTags } from './tagged-notes';
+import { findTaggedEntries } from './tagged-notes';
 import type { HorizonSettings } from '../settings';
 import { openNoteInCurrentTab } from './open-note';
-import { parentNotes } from './parent-notes';
 import { nestTaggedEntries, visibleEntryRelations, type EntryNode } from './entry-tree';
 import type { Events, TFile } from 'obsidian';
 import type { TaggedEntry } from './tagged-notes';
@@ -31,6 +30,8 @@ import { LaterItemsKeyboard } from './later-items-keyboard';
 import { NoteActionHistory } from './note-action-history';
 import { HistoryKeyboard } from './history-keyboard';
 import { LaterItemsAnimation } from './later-items-animation';
+import { goalProgress, renderGoalProgressIcon } from './goal-progress';
+import { taggedMetadataReader } from './tagged-metadata';
 
 export const HORIZON_NOTES_VIEW_TYPE = 'horizon-tagged-notes';
 
@@ -40,6 +41,7 @@ export class HorizonNotesView extends ItemView {
 	private resultsEl: HTMLElement | undefined;
 	private previewEl: HTMLElement | undefined;
 	private renderVersion = 0;
+	private pendingHighlight: { path: string; line?: number } | undefined;
 	private statusFilter: ProjectFilter = 'all';
 	private showLaterItems = true;
 	private laterAnimation = this.addChild(new LaterItemsAnimation());
@@ -98,13 +100,23 @@ export class HorizonNotesView extends ItemView {
 	getViewType(): string { return HORIZON_NOTES_VIEW_TYPE; }
 	getDisplayText(): string { return this.option()?.label ?? 'horizon'; }
 	getIcon(): string { return this.option()?.icon ?? HORIZON_ICON; }
+	private syncHeaderTitle(): void {
+		const leafContent = this.contentEl.closest<HTMLElement>('.workspace-leaf-content');
+		const title = leafContent?.querySelector<HTMLElement>('.view-header-title');
+		if (title) title.textContent = this.getDisplayText();
+	}
 	getState(): Record<string, unknown> {
 		return { optionId: this.selectedOption, statusFilter: this.statusFilter, showLaterItems: this.showLaterItems };
 	}
 	focus(): void { this.contentEl.focus({ preventScroll: true }); }
+	highlightEntry(path: string, line?: number): void {
+		this.pendingHighlight = { path, line };
+		void this.renderNotes();
+	}
 
 	setState(state: unknown, _result: ViewStateResult): Promise<void> {
 		if (state && typeof state === 'object' && 'optionId' in state) {
+			this.pendingHighlight = undefined;
 			const option = SIDEBAR_SECTIONS.flatMap(section => section.options)
 				.find(item => item.id === state.optionId && item.tag);
 			if (option && option.id !== this.selectedOption) {
@@ -124,6 +136,7 @@ export class HorizonNotesView extends ItemView {
 		this.deadlineEditor?.close();
 		this.relationPicker?.close();
 		void this.renderNotes();
+		this.syncHeaderTitle();
 		return Promise.resolve();
 	}
 
@@ -167,7 +180,7 @@ export class HorizonNotesView extends ItemView {
 					const path = link.getAttribute('data-note-path');
 					if (!path) return;
 					this.relationPicker?.close();
-					this.relationPicker = new RelationPicker(this.app, path, property, () => this.renderNotes(), this.actionPaths(link), this.history);
+					this.relationPicker = new RelationPicker(this.app, property, () => this.renderNotes(), this.actionPaths(link), this.history);
 					this.relationPicker.open();
 				},
 			})));
@@ -244,11 +257,13 @@ export class HorizonNotesView extends ItemView {
 		this.registerEvent(this.app.vault.on('rename', () => refresh()));
 		const vaultEvents: Events = this.app.vault;
 		this.registerEvent(vaultEvents.on('config-changed', () => this.applySettings()));
+		this.syncHeaderTitle();
 		void this.renderNotes();
 		return Promise.resolve();
 	}
 
 	onClose(): Promise<void> {
+		this.pendingHighlight = undefined;
 		this.laterAnimation.reset();
 		this.history.clear();
 		if (this.historyKeyboard) this.removeChild(this.historyKeyboard);
@@ -323,7 +338,7 @@ export class HorizonNotesView extends ItemView {
 		const path = button.getAttribute('data-note-path');
 		if (!path) return;
 		this.deadlineEditor?.close();
-		this.deadlineEditor = new NoteDateEditor(this.app, path, () => this.renderNotes(), property, this.actionPaths(button), this.history);
+		this.deadlineEditor = new NoteDateEditor(this.app, () => this.renderNotes(), property, this.actionPaths(button), this.history);
 		this.deadlineEditor.open();
 	}
 
@@ -347,29 +362,20 @@ export class HorizonNotesView extends ItemView {
 		results.hidden = false;
 		const tag = option.tag;
 		try {
-			let entries = await findTaggedEntries(this.app.vault.getMarkdownFiles(), (file) => {
-				const cache = this.app.metadataCache.getFileCache(file);
-				if (!cache) return null;
-				const resolveRelation = (linkpath: string) => {
-					const linked = this.app.metadataCache.getFirstLinkpathDest(linkpath, file.path);
-					if (!linked) return undefined;
-					const frontmatter = this.app.metadataCache.getFileCache(linked)?.frontmatter;
-					return {
-						name: linked.basename,
-						path: linked.path,
-						icon: iconForNoteTags(frontmatter ? parseFrontMatterTags(frontmatter) ?? [] : []),
-					};
-				};
-				return {
-					noteTags: cache.frontmatter ? parseFrontMatterTags(cache.frontmatter) ?? [] : [],
-					lineTags: cache.tags ?? [],
-					parents: parentNotes(cache.frontmatter?.parent, resolveRelation),
-					dependents: parentNotes(cache.frontmatter?.dependent, resolveRelation),
-				};
-			}, file => this.app.vault.cachedRead(file), tag);
+			const files = this.app.vault.getMarkdownFiles();
+			const getMetadata = taggedMetadataReader(this.app);
+			let entries = await findTaggedEntries(files, getMetadata, file => this.app.vault.cachedRead(file), tag);
 			// A category change, metadata refresh, or close supersedes pending reads.
 			if (version !== this.renderVersion || results !== this.resultsEl) return;
 			const isProject = option.id === 'projects';
+			const isGoal = option.id === 'goals';
+			const progress = isGoal && entries.length
+				? goalProgress(entries,
+					await findTaggedEntries(files, getMetadata, file => this.app.vault.cachedRead(file), '#project'),
+					entry => this.projectStatus(entry).tag,
+					entry => this.app.metadataCache.getFileCache(entry.file)?.frontmatter?.progress)
+				: new Map<TaggedEntry<TFile>, number>();
+			if (version !== this.renderVersion || results !== this.resultsEl) return;
 			const hasDeadlines = isProject || option.id === 'goals';
 			const statuses = isProject ? availableProjectStatuses(entries, entry => this.projectStatus(entry)) : [];
 			if (isProject) {
@@ -396,6 +402,7 @@ export class HorizonNotesView extends ItemView {
 					? `No projects with ${this.statusFilter.length > 1 ? 'statuses' : 'status'} ${projectFilterLabel(this.statusFilter)}.`
 					: `No notes tagged ${tag}.` });
 				this.keyboardNavigation?.afterRender();
+				this.pendingHighlight = undefined;
 				return;
 			}
 			const names = new Map<string, Set<string>>();
@@ -445,7 +452,7 @@ export class HorizonNotesView extends ItemView {
 					cls: 'horizon-note-link',
 					attr: {
 						href: file.path, 'data-note-path': file.path,
-						'aria-label': entry.text,
+						'aria-label': isGoal ? `${entry.text}, ${Math.round(progress.get(entry) ?? 0)}% complete` : entry.text,
 					},
 				});
 				if (isProject) link.setAttribute('data-tooltip-classes', 'horizon-project-tooltip');
@@ -475,7 +482,8 @@ export class HorizonNotesView extends ItemView {
 					if (entry.line !== undefined) button.setAttribute('data-note-line', String(entry.line));
 					if (entry.sourceLine !== undefined) button.setAttribute('data-source-line', entry.sourceLine);
 					setIcon(button, status.icon);
-				} else setIcon(icon, option.noteIcon ?? 'file-text');
+				} else if (isGoal) renderGoalProgressIcon(icon, progress.get(entry) ?? 0);
+				else setIcon(icon, option.noteIcon ?? 'file-text');
 				if (hasDeadlines) {
 					const start: unknown = this.app.metadataCache.getFileCache(file)?.frontmatter?.[DATE_PROPERTIES.start];
 					const formatted = formatStartDate(start);
@@ -519,6 +527,11 @@ export class HorizonNotesView extends ItemView {
 				if (laterToggleFocused) toggle.focus({ preventScroll: true });
 			}
 			this.keyboardNavigation?.afterRender();
+			if (isGoal && this.pendingHighlight) {
+				const { path, line } = this.pendingHighlight;
+				this.pendingHighlight = undefined;
+				this.keyboardNavigation?.selectEntry(path, line);
+			}
 		} catch (error: unknown) {
 			if (version !== this.renderVersion || results !== this.resultsEl) return;
 			console.error('horizon: could not load tagged entries', error);

@@ -26,7 +26,9 @@ export function visibleEntryRelations<T extends { path: string }>(node: EntryNod
 }
 
 /** Nest each entry once, only beneath a resolved whole note in this list. */
-export function nestTaggedEntries<T extends { path: string }>(entries: readonly TaggedEntry<T>[]): EntryNode<T>[] {
+export function nestTaggedEntries<T extends { path: string }>(
+	entries: readonly TaggedEntry<T>[], options: { includeDependents?: boolean } = {},
+): EntryNode<T>[] {
 	const nodes = entries.map((entry): EntryNode<T> => ({ entry, children: [] }));
 	const notes = new Map(nodes.filter(node => node.entry.line === undefined)
 		.map(node => [node.entry.file.path, node]));
@@ -36,7 +38,8 @@ export function nestTaggedEntries<T extends { path: string }>(entries: readonly 
 			? [{ path: node.entry.file.path, relationship: 'parent' as const }]
 			: [
 				...(node.entry.parents ?? []).map(parent => ({ path: parent.path, relationship: 'parent' as const })),
-				...(node.entry.dependents ?? []).map(dependent => ({ path: dependent.path, relationship: 'dependent' as const })),
+				...(options.includeDependents === false ? [] : node.entry.dependents ?? [])
+					.map(dependent => ({ path: dependent.path, relationship: 'dependent' as const })),
 			];
 		for (const { path, relationship } of relations) {
 			if (!path) continue;

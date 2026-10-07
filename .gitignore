@@ -24,3 +24,6 @@ data.json
 # Local project memory and handoff notes
 MEMORY.md
 handoffs/
+
+# Local feature scope documents
+*-scope.md

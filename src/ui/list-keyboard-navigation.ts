@@ -154,6 +154,16 @@ export class ListKeyboardNavigation extends Component {
 		return this.selected.has(this.key(row)) ? rows.filter(item => this.selected.has(this.key(item))) : [row];
 	}
 
+	/** Select and reveal one exact note or inline entry after external navigation. */
+	selectEntry(path: string, line?: number): boolean {
+		const row = this.rows().find(candidate => candidate.getAttribute('data-note-path') === path &&
+			candidate.getAttribute('data-note-line') === (line === undefined ? null : String(line)));
+		if (!row) return false;
+		this.selectSingle(row);
+		this.focusRow(row);
+		return true;
+	}
+
 	private key(row: Element): string {
 		return JSON.stringify(this.identity(row));
 	}

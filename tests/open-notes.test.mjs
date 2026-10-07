@@ -14,7 +14,7 @@ function workspace(roots, recent) {
 }
 test('uses the center blank tab and reveals the selected tag category', async () => {
 	const blank = leaf('empty'); const ws = workspace([blank], blank);
-	await openNotesInCenter(ws, TYPE, 'life-areas');
+	assert.equal(await openNotesInCenter(ws, TYPE, 'life-areas'), blank);
 	assert.equal(ws.created, 0); assert.equal(ws.active, blank);
 	assert.deepEqual(blank.calls[0].state, { optionId: 'life-areas' });
 });

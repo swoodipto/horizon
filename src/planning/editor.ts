@@ -21,12 +21,10 @@ export class PlanningEditor extends Modal {
 	onOpen(): void {
 		this.bindings.load();
 		this.contentEl.addClass('horizon-planning-editor');
-		this.setTitle(this.options.project ? `Plan ${this.options.project.title}` : 'New project');
+		this.setTitle(this.options.project ? 'Plan project' : 'Create project');
 		const form = this.contentEl.createEl('form');
-		const title = this.field(form, 'Project title', 'text');
-		title.value = this.options.project?.title ?? '';
-		title.required = true;
-		if (this.options.project) title.disabled = true;
+		const title = this.options.project ? undefined : this.field(form, 'Project title', 'text');
+		if (title) title.required = true;
 		const dates = this.options.dates ?? this.options.project ?? {};
 		const start = this.field(form, 'Start date', 'date');
 		start.value = dates.start ?? '';
@@ -51,7 +49,7 @@ export class PlanningEditor extends Modal {
 			warning.empty();
 			const draft: PlanningProject = {
 				id: this.options.project?.id ?? 'new-project', path: this.options.project?.path ?? '',
-				title: title.value.trim(), status: this.options.project?.status ?? 'todo',
+				title: title?.value.trim() ?? this.options.project?.title ?? '', status: this.options.project?.status ?? 'todo',
 				start: parseDate(start.value), deadline: parseDate(deadline.value),
 				dependencies: [...selection].map(path => ({ path, title: choices.find(choice => choice.value === path)?.title ?? path })),
 			};
@@ -74,14 +72,12 @@ export class PlanningEditor extends Modal {
 		this.bindings.registerDomEvent(deadline, 'change', preview);
 		const error = form.createEl('p', { cls: 'horizon-planning-error', attr: { role: 'alert' } });
 		const actions = form.createDiv({ cls: 'horizon-planning-editor-actions' });
-		const cancel = actions.createEl('button', { text: 'Cancel', attr: { type: 'button' } });
 		actions.createEl('button', { text: 'Save plan', cls: 'mod-cta', attr: { type: 'submit' } });
-		this.bindings.registerDomEvent(cancel, 'click', () => this.close());
 		this.bindings.registerDomEvent(form, 'submit', event => {
 			event.preventDefault();
 			if (this.saving) return;
 			const planned: ProjectDates = { start: parseDate(start.value), deadline: parseDate(deadline.value) };
-			if (!title.value.trim()) { error.setText('Enter a project title.'); return; }
+			if (!this.options.project && !title?.value.trim()) { error.setText('Enter a project title.'); return; }
 			if ((start.value && !planned.start) || (deadline.value && !planned.deadline)) {
 				error.setText('Enter a valid calendar date.'); return;
 			}
@@ -93,15 +89,14 @@ export class PlanningEditor extends Modal {
 			}
 			this.saving = true;
 			for (const control of Array.from(form.querySelectorAll<HTMLInputElement | HTMLButtonElement>('input, button'))) control.disabled = true;
-			void this.options.save(title.value.trim(), planned, [...selection]).then(() => this.close()).catch((cause: unknown) => {
+			void this.options.save(title?.value.trim() ?? this.options.project?.title ?? '', planned, [...selection]).then(() => this.close()).catch((cause: unknown) => {
 				this.saving = false;
 				for (const control of Array.from(form.querySelectorAll<HTMLInputElement | HTMLButtonElement>('input, button'))) control.disabled = false;
-				if (this.options.project) title.disabled = true;
 				error.setText(cause instanceof Error ? cause.message : 'Could not save the project plan.');
 			});
 		});
 		preview();
-		if (this.options.project) start.focus(); else title.focus();
+		if (this.options.project) start.focus(); else title?.focus();
 	}
 
 	onClose(): void {

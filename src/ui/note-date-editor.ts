@@ -8,13 +8,12 @@ export class NoteDateEditor extends Modal {
 	private bindings = new Component();
 	private saving = false;
 
-	constructor(app: App, private path: string, private refresh: () => Promise<void>, private property: 'start' | 'deadline' = 'deadline', private paths: string[], private history: NoteActionHistory) { super(app); }
+	constructor(app: App, private refresh: () => Promise<void>, private property: 'start' | 'deadline' = 'deadline', private paths: string[], private history: NoteActionHistory) { super(app); }
 
 	onOpen(): void {
 		this.bindings.load();
-		const file = this.app.vault.getFileByPath(this.path);
 		const title = this.property === 'start' ? 'Start date' : 'Deadline';
-		this.setTitle(`${title} for ${this.paths.length > 1 ? `${this.paths.length} notes` : file?.basename ?? this.path}`);
+		this.setTitle(this.property === 'start' ? 'Set start date' : 'Set deadline');
 		const properties = this.paths.map(path => {
 			const note = this.app.vault.getFileByPath(path);
 			return note ? this.app.metadataCache.getFileCache(note)?.frontmatter : undefined;
@@ -30,10 +29,8 @@ export class NoteDateEditor extends Modal {
 		form.createEl('p', { cls: 'horizon-planning-hint', text: `Saved to ${this.paths.length > 1 ? 'all selected notes’' : 'this note’s'} ${DATE_PROPERTIES[this.property]} property. Clear the date to remove it.` });
 		const error = form.createEl('p', { cls: 'horizon-planning-error', attr: { role: 'alert' } });
 		const actions = form.createDiv({ cls: 'horizon-planning-editor-actions' });
-		const cancel = actions.createEl('button', { text: 'Cancel', attr: { type: 'button' } });
 		const clear = actions.createEl('button', { text: 'Clear date', attr: { type: 'button' } });
 		actions.createEl('button', { text: `Save ${this.property === 'start' ? 'start date' : 'deadline'}`, cls: 'mod-cta', attr: { type: 'submit' } });
-		this.bindings.registerDomEvent(cancel, 'click', () => this.close());
 		this.bindings.registerDomEvent(clear, 'click', () => { date.value = ''; date.focus(); });
 		this.bindings.registerDomEvent(form, 'submit', event => {
 			event.preventDefault();

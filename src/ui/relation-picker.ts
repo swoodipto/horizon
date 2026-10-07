@@ -5,10 +5,10 @@ import { addNoteRelation, type RelationProperty } from './note-relations';
 
 /** Native keyboard-searchable note selection, preserving other relations. */
 export class RelationPicker extends FuzzySuggestModal<TFile> {
-	constructor(app: App, private path: string, private property: RelationProperty,
+	constructor(app: App, private property: RelationProperty,
 		private refresh: () => Promise<void>, private paths: string[], private history: NoteActionHistory) {
 		super(app);
-		this.setPlaceholder(`Select ${property} for ${paths.length > 1 ? `${paths.length} notes` : app.vault.getFileByPath(path)?.basename ?? path}`);
+		this.setPlaceholder(`Select ${property}`);
 	}
 
 	getItems(): TFile[] { return this.app.vault.getMarkdownFiles().filter(file => !this.paths.includes(file.path)); }

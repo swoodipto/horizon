@@ -41,6 +41,13 @@ test('available parents take precedence; dependent references remain when they a
 	assert.deepEqual(visibleEntryRelations(fallback[0].children[0]), child.parents);
 });
 
+test('parent-only nesting leaves dependency-linked goals separate', () => {
+	const parent = note('Parent.md');
+	const child = dependentNote('Child.md', ['Parent.md']);
+	assert.equal(nestTaggedEntries([parent, child])[0].children.length, 1);
+	assert.equal(nestTaggedEntries([parent, child], { includeDependents: false }).length, 2);
+});
+
 test('dependents outside the list and unresolved links stay visible without false nesting', () => {
 	const root = note('A/Work.md');
 	const child = dependentNote('Child.md', ['B/Work.md']);

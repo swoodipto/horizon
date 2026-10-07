@@ -54,6 +54,7 @@ export async function findTaggedEntries<T extends { basename: string; path: stri
 	getMetadata: (file: T) => TaggedMetadata | null,
 	readContent: (file: T) => Promise<string>,
 	tag: string,
+	includeSourceLine = false,
 ): Promise<TaggedEntry<T>[]> {
 	const groups = await Promise.all(files.map(async (file): Promise<TaggedEntry<T>[]> => {
 		const metadata = getMetadata(file);
@@ -91,7 +92,7 @@ export async function findTaggedEntries<T extends { basename: string; path: stri
 				.replace(/^(?:[-+*]|\d+[.)])\s+/, '').replace(/^\[[ xX]\]\s*/, '')
 				.replace(/^#{1,6}\s+/, '').replace(/[\t ]{2,}/g, ' ').trim();
 			const entry: TaggedEntry<T> = { file, text: text || tag, subtitle: file.basename, line };
-			if (tag.toLocaleLowerCase() === '#project') entry.sourceLine = sourceLine;
+			if (tag.toLocaleLowerCase() === '#project' || includeSourceLine) entry.sourceLine = sourceLine;
 			entries.push(entry);
 		}
 		return entries;
