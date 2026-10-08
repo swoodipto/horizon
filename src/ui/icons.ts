@@ -3,6 +3,7 @@ import { GOALS_ICON } from './icon-ids';
 
 export const HORIZON_ICON = 'horizon-logo';
 export const PROJECTS_ICON = 'horizon-layout-grid-circles';
+export const INSIGHTS_ICON = 'horizon-insights';
 export const PARENT_CHILD_ICON = 'horizon-parent-child';
 export const DEPENDENT_ICON = 'horizon-dependent';
 
@@ -39,6 +40,13 @@ const PROJECTS_SVG = `
 	<circle cx="6.5" cy="6.5" r="3.5" />
 </g>`;
 
+// Preserve the supplied 24×24 Insights artwork in Obsidian's 100×100 icon view box.
+const INSIGHTS_SVG = `
+<g transform="scale(4.1666666667)" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+	<path d="M3 3V19C3 19.5304 3.21071 20.0391 3.58579 20.4142C3.96086 20.7893 4.46957 21 5 21H21" />
+	<path d="M17.6631 16.2816H8.94086C8.07006 16.2816 7.61533 15.2459 8.20469 14.6048L16.9269 5.11758C17.5437 4.44672 18.6631 4.88309 18.6631 5.79438V15.2816C18.6631 15.8339 18.2154 16.2816 17.6631 16.2816Z" />
+</g>`;
+
 // Center the supplied 22×16 connector in Obsidian's 100×100 icon view box.
 // Define it once; views reuse its registered icon ID.
 const PARENT_CHILD_SVG = `
@@ -64,11 +72,13 @@ export function registerIcons(plugin: Plugin): void {
 	addIcon(GOALS_ICON, GOALS_SVG);
 	addIcon(HORIZON_ICON, HORIZON_SVG);
 	addIcon(PROJECTS_ICON, PROJECTS_SVG);
+	addIcon(INSIGHTS_ICON, INSIGHTS_SVG);
 	addIcon(PARENT_CHILD_ICON, PARENT_CHILD_SVG);
 	addIcon(DEPENDENT_ICON, DEPENDENT_SVG);
 	plugin.register(() => removeIcon(HORIZON_ICON));
 	plugin.register(() => removeIcon(GOALS_ICON));
 	plugin.register(() => removeIcon(PROJECTS_ICON));
+	plugin.register(() => removeIcon(INSIGHTS_ICON));
 	plugin.register(() => removeIcon(PARENT_CHILD_ICON));
 	plugin.register(() => removeIcon(DEPENDENT_ICON));
 }

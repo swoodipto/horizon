@@ -13,8 +13,10 @@ import { groupEntriesByParent } from './parent-entry-groups';
 import { isPlanningOption } from '../planning/option';
 import { taggedMetadataReader } from './tagged-metadata';
 import { goalProgress, renderGoalProgressIcon } from './goal-progress';
+import { projectTaskProgress } from './project-task-progress';
 import { activeSubgoalCount, sidebarGoalGroups, sidebarGoals, sidebarProjects } from './sidebar-active-entries';
 import type { EntryNode } from './entry-tree';
+import { suppressHorizonTooltips } from './tooltips';
 
 export const HORIZON_VIEW_TYPE = 'horizon-sidebar';
 const HIDDEN_SIDEBAR_OPTIONS = new Set(['upcoming', 'timeline']);
@@ -28,6 +30,7 @@ export class HorizonSidebarView extends ItemView {
 	private projectsEl: HTMLElement | undefined;
 	private renderVersion = 0;
 	private shortcuts: OptionKeyboardShortcuts | undefined;
+	private stopTooltips: (() => void) | undefined;
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -57,6 +60,8 @@ export class HorizonSidebarView extends ItemView {
 	}
 
 	onOpen(): Promise<void> {
+		this.stopTooltips = suppressHorizonTooltips(this.contentEl);
+		this.register(() => this.stopTooltips?.());
 		this.contentEl.empty();
 		this.contentEl.addClass('horizon-sidebar');
 		this.optionButtons.clear();
@@ -107,6 +112,7 @@ export class HorizonSidebarView extends ItemView {
 	}
 
 	onClose(): Promise<void> {
+		this.stopTooltips?.(); this.stopTooltips = undefined;
 		this.optionButtons.clear();
 		if (this.shortcuts) this.removeChild(this.shortcuts);
 		this.shortcuts = undefined;
@@ -193,7 +199,7 @@ export class HorizonSidebarView extends ItemView {
 			const status = (entry: TaggedEntry<TFile>) =>
 				projectEntryStatus(entry, metadata(entry.file) ?? { noteTags: [], lineTags: [] }).tag;
 			const progress = goalProgress(goals, projects, status,
-				entry => this.app.metadataCache.getFileCache(entry.file)?.frontmatter?.progress);
+				entry => projectTaskProgress(entry, this.app.metadataCache.getFileCache(entry.file)?.listItems));
 			goalsEl.empty();
 			for (const group of sidebarGoalGroups(goals, sidebarGoals(goals, progress))) {
 				const section = goalsEl.createDiv({ cls: 'horizon-sidebar-project-group' });

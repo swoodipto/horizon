@@ -1,9 +1,11 @@
 import { debounce, parseFrontMatterTags, type App, type Plugin, type TFile } from 'obsidian';
-import { goalSnapshots } from '../insights/model';
-import type { GoalSnapshot } from '../insights/types';
+import { goalSnapshots, projectPaceSnapshots } from '../insights/model';
+import type { GoalSnapshot, PaceSnapshot } from '../insights/types';
 import { DATE_PROPERTIES } from '../planning/dates';
 import { projectEntryStatus } from './project-filter';
 import { projectStatusForTags } from './project-status';
+import { projectProgress } from './goal-progress';
+import { projectTaskProgress } from './project-task-progress';
 import { findTaggedEntries, matchesTag } from './tagged-notes';
 import { taggedMetadataReader } from './tagged-metadata';
 
@@ -15,10 +17,11 @@ function relevantFingerprint(app: ProgressApp, file: TFile): string {
 		cache?.frontmatter?.tags, cache?.frontmatter?.parent, cache?.frontmatter?.dependent,
 		cache?.frontmatter?.[DATE_PROPERTIES.start], cache?.frontmatter?.[DATE_PROPERTIES.deadline],
 		(cache?.tags ?? []).map(item => [item.tag, item.position.start.line]),
+		(cache?.listItems ?? []).map(item => [item.position.start.line, item.position.start.col, item.parent, item.task]),
 	]);
 }
 
-/** Persist derived progress on whole-note goals, independent of the open view. */
+/** Persist task-derived project and rolled-up goal progress, independent of open views. */
 export class GoalProgressSync {
 	private relevantPaths = new Set<string>();
 	private ownWrites = new Map<string, { value: number; fingerprint: string }>();
@@ -27,7 +30,7 @@ export class GoalProgressSync {
 	private running = false;
 	private disposed = false;
 
-	constructor(private app: ProgressApp, private publish?: (goals: GoalSnapshot[]) => void) {}
+	constructor(private app: ProgressApp, private publish?: (goals: GoalSnapshot[], projects: PaceSnapshot[]) => void) {}
 
 	refresh(): void { this.request(); }
 
@@ -90,30 +93,41 @@ export class GoalProgressSync {
 		this.relevantPaths = new Set([...goals, ...projects].map(entry => entry.file.path));
 		const snapshots = goalSnapshots(goals, projects, entry =>
 			projectEntryStatus(entry, metadata(entry.file) ?? { noteTags: [], lineTags: [] }).tag,
-			file => this.app.metadataCache.getFileCache(file)?.frontmatter);
-		this.publish?.(snapshots);
+			file => this.app.metadataCache.getFileCache(file)?.frontmatter,
+			file => this.app.metadataCache.getFileCache(file)?.listItems);
+		this.publish?.(snapshots, projectPaceSnapshots(snapshots, projects, entry =>
+			projectEntryStatus(entry, metadata(entry.file) ?? { noteTags: [], lineTags: [] }).tag,
+			file => this.app.metadataCache.getFileCache(file)?.frontmatter,
+			file => this.app.metadataCache.getFileCache(file)?.listItems));
 		for (const project of projects) {
 			if (this.disposed || revision !== this.revision) return;
 			if (project.line !== undefined) continue;
 			const cache = this.app.metadataCache.getFileCache(project.file);
+			if (!cache) continue;
 			const tags = parseFrontMatterTags(cache?.frontmatter ?? {}) ?? [];
 			// A dual-tagged note is a goal entry; its derived goal value owns the property.
-			if (matchesTag(tags, '#goal') || projectStatusForTags(tags).tag !== 'completed' ||
-				cache?.frontmatter?.progress === 100) continue;
+			if (matchesTag(tags, '#goal')) continue;
+			const measured = projectTaskProgress(project, cache.listItems);
+			const desired = Math.round(projectProgress(projectStatusForTags(tags).tag, measured));
+			if (cache.frontmatter?.progress === desired) continue;
+			const fingerprint = relevantFingerprint(this.app, project.file);
 			let written = false;
 			this.ownWrites.set(project.file.path, {
-				value: 100, fingerprint: relevantFingerprint(this.app, project.file),
+				value: desired, fingerprint,
 			});
 			try {
 				await this.app.fileManager.processFrontMatter(project.file, (current: Record<string, unknown>) => {
+					if (this.disposed || revision !== this.revision ||
+						relevantFingerprint(this.app, project.file) !== fingerprint) return;
 					const currentTags = parseFrontMatterTags(current) ?? [];
 					if (!matchesTag(currentTags, '#project') || matchesTag(currentTags, '#goal') ||
-						projectStatusForTags(currentTags).tag !== 'completed' || current.progress === 100) return;
-					current.progress = 100;
+						Math.round(projectProgress(projectStatusForTags(currentTags).tag, measured)) !== desired ||
+						current.progress === desired) return;
+					current.progress = desired;
 					written = true;
 				});
 			} catch (error: unknown) {
-				console.error('horizon: could not save completed project progress', error);
+				console.error('horizon: could not save project progress', error);
 				this.ownWrites.delete(project.file.path);
 			}
 			if (!written) this.ownWrites.delete(project.file.path);
@@ -131,6 +145,7 @@ export class GoalProgressSync {
 			});
 			try {
 				await this.app.fileManager.processFrontMatter(goal.file, (current: Record<string, unknown>) => {
+					if (this.disposed || revision !== this.revision) return;
 					if (!matchesTag(parseFrontMatterTags(current) ?? [], '#goal') || current.progress === desired) return;
 					current.progress = desired;
 					written = true;

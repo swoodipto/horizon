@@ -4,11 +4,9 @@ import type { ProjectStatusTag } from './project-filter';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-export function projectProgress(status: ProjectStatusTag, saved: unknown, inline = false): number {
+export function projectProgress(status: ProjectStatusTag, measured: unknown): number {
 	if (status === 'completed') return 100;
-	// Inline projects have no independent frontmatter; retain their existing behavior for now.
-	if (inline) return status === 'doing' ? 50 : status === 'discuss' || status === 'ready' ? 25 : 0;
-	return typeof saved === 'number' && Number.isFinite(saved) && saved >= 0 && saved <= 100 ? saved : 0;
+	return typeof measured === 'number' && Number.isFinite(measured) && measured >= 0 && measured <= 100 ? measured : 0;
 }
 
 /** Each direct sub-goal or project has one equal share of its parent goal. */
@@ -51,7 +49,7 @@ export function evaluateGoalProgress<T extends { path: string }>(
 			if (!parent) continue;
 			const values = directProjects.get(parent) ?? [];
 			values.push({ entry: project, progress: projectProgress(
-				statusForProject(project), progressForProject(project), project.line !== undefined,
+				statusForProject(project), progressForProject(project),
 			) });
 			directProjects.set(parent, values);
 			break;

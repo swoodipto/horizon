@@ -1,5 +1,9 @@
 import type { DateKey } from '../planning/types';
 
+export function formatInsightAxisDate(date: DateKey): string {
+	return `${Number(date.slice(8, 10))}.${Number(date.slice(5, 7))}`;
+}
+
 export function formatInsightDate(date: DateKey): string {
 	const value = new Date(0);
 	value.setFullYear(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)));

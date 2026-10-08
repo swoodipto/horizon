@@ -21,7 +21,7 @@ const project = (path, status, parents = [], line, dependents = []) => ({
 });
 const measure = (goals, projects) => goalProgress(goals, projects, entry => entry.status, entry => entry.progress);
 
-test('whole-note projects use numeric progress, default to zero and complete at 100', () => {
+test('projects use measured task percentages, default to zero and complete at 100', () => {
 	for (const status of ['todo', 'backburner', 'waiting', 'someday', 'discuss', 'ready', 'doing']) {
 		assert.equal(projectProgress(status, undefined), 0);
 		assert.equal(projectProgress(status, 42.5), 42.5);
@@ -31,10 +31,9 @@ test('whole-note projects use numeric progress, default to zero and complete at 
 	}
 	assert.equal(projectProgress('completed', 85), 100);
 	assert.equal(projectProgress('completed', undefined), 100);
-	// Inline projects have no independent YAML property; their existing status logic is unchanged.
-	assert.equal(projectProgress('ready', 70, true), 25);
-	assert.equal(projectProgress('doing', 70, true), 50);
-	assert.equal(projectProgress('completed', undefined, true), 100);
+	// Inline and whole-note projects use the same measurement, never status-based partial credit.
+	assert.equal(projectProgress('ready', 70), 70);
+	assert.equal(projectProgress('doing', 70), 70);
 });
 
 test('sub-goals average their projects and roll up to the parent goal', () => {

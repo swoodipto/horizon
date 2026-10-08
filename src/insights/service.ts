@@ -2,13 +2,14 @@ import { Notice, type Plugin } from 'obsidian';
 import { today } from '../planning/dates';
 import type { PluginDataStore } from '../plugin-data';
 import { historyForGoal, observeGoals, renameHistory, type GoalHistory } from './history';
-import type { GoalSnapshot } from './types';
+import type { GoalSnapshot, PaceSnapshot } from './types';
 
 const HOUR = 3_600_000;
 
 /** Shares the progress sync's evaluated snapshots; never rescans the vault itself. */
 export class InsightsService {
 	goals: readonly GoalSnapshot[] = [];
+	projects: readonly PaceSnapshot[] = [];
 	ready = false;
 	private listeners = new Set<() => void>();
 	private continuous = false;
@@ -51,11 +52,12 @@ export class InsightsService {
 		});
 	}
 
-	accept(goals: GoalSnapshot[]): void {
+	accept(goals: GoalSnapshot[], projects: PaceSnapshot[] = []): void {
 		if (this.disposed) return;
 		const now = Date.now();
 		const continuous = this.continuous && !document.hidden && now - this.lastTick <= 90_000;
 		this.goals = goals;
+		this.projects = projects;
 		this.ready = true;
 		if (observeGoals(this.data.history, goals, now, continuous)) this.scheduleSave();
 		this.lastObservation = now;
@@ -65,7 +67,7 @@ export class InsightsService {
 		for (const listener of this.listeners) listener();
 	}
 
-	history(goal: GoalSnapshot): GoalHistory | undefined { return historyForGoal(this.data.history, goal.identity); }
+	history(goal: Pick<GoalSnapshot, 'identity'>): GoalHistory | undefined { return historyForGoal(this.data.history, goal.identity); }
 
 	subscribe(listener: () => void): () => void {
 		this.listeners.add(listener);

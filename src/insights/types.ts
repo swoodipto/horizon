@@ -1,5 +1,6 @@
 import type { TFile } from 'obsidian';
 import type { TaggedEntry } from '../ui/tagged-notes';
+import { parseDate } from '../planning/dates';
 
 export interface EntryIdentity { path: string; line?: number; sourceLine?: string }
 export type WorkState = 'unstarted' | 'started' | 'completed';
@@ -15,6 +16,14 @@ export interface GoalSnapshot {
 	start?: unknown;
 	deadline?: unknown;
 	contributors: Contributor[];
+}
+
+export type PaceSnapshot = Pick<GoalSnapshot, 'entry' | 'identity' | 'progress' | 'start' | 'deadline'> & {
+	kind: 'goal' | 'project';
+};
+
+export function visiblePaceEntry(item: PaceSnapshot): boolean {
+	return parseDate(item.start) !== undefined && (item.kind === 'project' || item.progress > 0);
 }
 
 export function entryIdentity(entry: TaggedEntry<{ path: string }>): EntryIdentity {

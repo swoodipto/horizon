@@ -9,6 +9,7 @@ import { PlanningEditor } from './editor';
 import { planningState, type PlanningState } from './state';
 import { PlanningStore } from './store';
 import { PlanningToolbar } from './toolbar';
+import { suppressHorizonTooltips } from '../ui/tooltips';
 import { UnscheduledProjects } from './unscheduled';
 import type { PlanningProject, PlanningRenderContext, ProjectDates } from './types';
 
@@ -25,6 +26,7 @@ export class HorizonPlanningView extends ItemView {
 	private timeline: TimelineRenderer | undefined;
 	private editor: PlanningEditor | undefined;
 	private shortcuts: OptionKeyboardShortcuts | undefined;
+	private stopTooltips: (() => void) | undefined;
 	private operations: Promise<unknown> = Promise.resolve();
 
 	constructor(leaf: WorkspaceLeaf, private selectOption: (option: SidebarOption) => void) {
@@ -45,6 +47,8 @@ export class HorizonPlanningView extends ItemView {
 	}
 
 	onOpen(): Promise<void> {
+		this.stopTooltips = suppressHorizonTooltips(this.contentEl);
+		this.register(() => this.stopTooltips?.());
 		this.opened = true;
 		this.contentEl.addClass('horizon-planning');
 		this.contentEl.setAttribute('tabindex', '-1');
@@ -63,6 +67,7 @@ export class HorizonPlanningView extends ItemView {
 	}
 
 	onClose(): Promise<void> {
+		this.stopTooltips?.(); this.stopTooltips = undefined;
 		this.opened = false;
 		this.generation++;
 		this.editor?.close();

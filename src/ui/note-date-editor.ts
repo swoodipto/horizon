@@ -3,6 +3,7 @@ import { App, Component, Modal } from 'obsidian';
 import { DATE_PROPERTIES, parseDate } from '../planning/dates';
 import { applyToItems } from './bulk-note-actions';
 import { setNoteDate } from './deadline';
+import { suppressHorizonTooltips } from './tooltips';
 
 export class NoteDateEditor extends Modal {
 	private bindings = new Component();
@@ -12,6 +13,7 @@ export class NoteDateEditor extends Modal {
 
 	onOpen(): void {
 		this.bindings.load();
+		this.bindings.register(suppressHorizonTooltips(this.modalEl));
 		const title = this.property === 'start' ? 'Start date' : 'Deadline';
 		this.setTitle(this.property === 'start' ? 'Set start date' : 'Set deadline');
 		const properties = this.paths.map(path => {

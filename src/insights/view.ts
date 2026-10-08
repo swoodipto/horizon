@@ -1,64 +1,58 @@
-import { ItemView, Notice, type Events, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
+import { ItemView, Notice, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import type { HorizonSettings } from '../settings';
 import { OptionKeyboardShortcuts } from '../ui/option-keyboard-shortcuts';
 import { openNoteInCurrentTab } from '../ui/open-note';
+import { INSIGHTS_ICON } from '../ui/icons';
+import { suppressHorizonTooltips } from '../ui/tooltips';
 import type { SidebarOption } from '../ui/sidebar-options';
-import { GoalGraphCard } from './graph-card';
+import { PaceCard } from './pace-card';
 import type { InsightsService } from './service';
-import type { GoalSnapshot } from './types';
+import { visiblePaceEntry, type PaceSnapshot } from './types';
 
 export const HORIZON_INSIGHTS_VIEW_TYPE = 'horizon-insights';
 
 export class HorizonInsightsView extends ItemView {
 	navigation = false;
 	private opened = false;
-	private preview: HTMLElement | undefined;
-	private grid: HTMLElement | undefined;
 	private empty: HTMLElement | undefined;
-	private count: HTMLElement | undefined;
-	private cards = new Map<string, GoalGraphCard>();
-	private expanded = new Set<string>();
+	private sections = new Map<PaceSnapshot['kind'], { container: HTMLElement; grid: HTMLElement }>();
+	private cards = new Map<string, PaceCard>();
 	private unsubscribe: (() => void) | undefined;
 	private shortcuts: OptionKeyboardShortcuts | undefined;
+	private stopTooltips: (() => void) | undefined;
 
 	constructor(leaf: WorkspaceLeaf, private service: InsightsService,
-		private settings: () => HorizonSettings, private selectOption: (option: SidebarOption) => void) { super(leaf); }
+		_settings: () => HorizonSettings, private selectOption: (option: SidebarOption) => void) { super(leaf); }
 
 	getViewType(): string { return HORIZON_INSIGHTS_VIEW_TYPE; }
 	getDisplayText(): string { return 'Insights'; }
-	getIcon(): string { return 'chart-spline'; }
+	getIcon(): string { return INSIGHTS_ICON; }
 	focus(): void { this.contentEl.focus({ preventScroll: true }); }
-	getState(): Record<string, unknown> { return { optionId: 'insights', expandedValues: [...this.expanded] }; }
-	setState(state: unknown, _result: ViewStateResult): Promise<void> {
-		if (state && typeof state === 'object' && 'expandedValues' in state && Array.isArray(state.expandedValues)) {
-			this.expanded = new Set(state.expandedValues.filter((key): key is string => typeof key === 'string'));
-		}
-		for (const [key, card] of this.cards) card.setExpanded(this.expanded.has(key));
+	getState(): Record<string, unknown> { return { optionId: 'insights' }; }
+	setState(_state: unknown, _result: ViewStateResult): Promise<void> {
 		this.render(); return Promise.resolve();
 	}
 
 	applySettings(): void {
-		const settings = this.settings();
-		this.contentEl.toggleClass('horizon-custom-width', !settings.useThemeContentWidth);
-		this.contentEl.setCssProps({ '--horizon-content-width': `${settings.customContentWidth}px` });
-		const vault = this.app.vault as typeof this.app.vault & { getConfig?: (key: string) => unknown };
-		this.preview?.toggleClass('is-readable-line-width', settings.useThemeContentWidth && vault.getConfig?.('readableLineLength') !== false);
+		// Insights has an independent responsive width; note-list width settings do not apply.
 	}
 
 	onOpen(): Promise<void> {
+		this.stopTooltips = suppressHorizonTooltips(this.contentEl);
+		this.register(() => this.stopTooltips?.());
 		this.opened = true;
 		this.contentEl.empty();
-		this.contentEl.addClass('horizon-notes', 'horizon-insights');
+		this.contentEl.removeClass('horizon-notes', 'horizon-custom-width');
+		this.contentEl.addClass('horizon-insights');
 		this.contentEl.tabIndex = -1;
-		const reading = this.contentEl.createDiv({ cls: 'markdown-reading-view' });
-		this.preview = reading.createDiv({ cls: 'markdown-preview-view markdown-rendered' });
-		const results = this.preview.createDiv({ cls: 'markdown-preview-sizer' }).createDiv({ cls: 'horizon-note-results' });
-		const heading = results.createDiv({ cls: 'inline-title horizon-results-heading' });
-		heading.createEl('h3', { text: 'Insights', cls: 'horizon-inline-title' });
-		this.count = heading.createSpan({ cls: 'horizon-note-count' });
+		const results = this.contentEl.createDiv({ cls: 'horizon-insights-content' });
+		results.createEl('h1', { text: 'Insights', cls: 'horizon-insights-title' });
 		this.empty = results.createDiv({ cls: 'horizon-insights-empty', attr: { role: 'status' } });
-		this.grid = results.createDiv({ cls: 'horizon-insights-grid' });
-		this.applySettings();
+		for (const [kind, label] of [['goal', 'Goals'], ['project', 'Projects']] as const) {
+			const container = results.createEl('section', { cls: 'horizon-insights-section', attr: { 'aria-label': label } });
+			container.createEl('h2', { text: label, cls: 'horizon-insights-section-title' });
+			this.sections.set(kind, { container, grid: container.createDiv({ cls: 'horizon-insights-grid' }) });
+		}
 		const title = this.contentEl.closest('.workspace-leaf-content')?.querySelector('.view-header-title');
 		if (title) title.textContent = 'Insights';
 		this.unsubscribe = this.service.subscribe(() => this.render());
@@ -66,50 +60,60 @@ export class HorizonInsightsView extends ItemView {
 			isActive: () => this.app.workspace.getActiveViewOfType(HorizonInsightsView) === this,
 			activate: option => this.selectOption(option),
 		}));
-		const events: Events = this.app.vault;
-		this.registerEvent(events.on('config-changed', () => this.applySettings()));
 		this.render(); return Promise.resolve();
 	}
 
 	onClose(): Promise<void> {
+		this.stopTooltips?.(); this.stopTooltips = undefined;
 		this.opened = false;
 		this.unsubscribe?.(); this.unsubscribe = undefined;
 		for (const card of this.cards.values()) this.removeChild(card);
 		this.cards.clear();
+		this.sections.clear();
+		this.empty = undefined;
 		if (this.shortcuts) this.removeChild(this.shortcuts);
 		this.shortcuts = undefined;
 		this.contentEl.empty(); return Promise.resolve();
 	}
 
 	private render(): void {
-		if (!this.opened || !this.grid || !this.empty) return;
-		const goals = this.service.goals.filter(goal => goal.progress > 0);
-		if (this.count) this.count.textContent = String(goals.length);
-		this.empty.textContent = this.service.ready ? 'No goals with progress yet.' : 'Loading goal progress…';
-		this.empty.hidden = goals.length > 0;
+		if (!this.opened || !this.empty) return;
+		const items: PaceSnapshot[] = [
+			...this.service.goals.map(goal => ({ ...goal, kind: 'goal' as const })), ...this.service.projects,
+		].filter(visiblePaceEntry);
+		this.empty.textContent = this.service.ready ? 'No eligible goals or projects. Add a start date; goals also need progress.' : 'Loading progress…';
+		this.empty.hidden = items.length > 0;
 		const keys = new Set<string>();
-		for (const [index, goal] of goals.entries()) {
-			const history = this.service.history(goal);
-			// Persistent observation identity keeps focus/disclosure state through safe renames and line moves.
-			const key = history ? `goal:${history.id}` : JSON.stringify([goal.identity.path, goal.identity.line ?? -1]); keys.add(key);
+		const positions = new Map<PaceSnapshot['kind'], number>();
+		for (const item of items) {
+			const section = this.sections.get(item.kind);
+			if (!section) continue;
+			const index = positions.get(item.kind) ?? 0;
+			positions.set(item.kind, index + 1);
+			const history = item.kind === 'goal' ? this.service.history(item) : undefined;
+			// Persistent observation identity keeps focus through safe renames and line moves.
+			const key = history ? `goal:${history.id}` : JSON.stringify([item.kind, item.identity.path, item.identity.line ?? -1]); keys.add(key);
 			let card = this.cards.get(key);
 			if (!card) {
-				card = this.addChild(new GoalGraphCard(this.grid, goal, item => { void this.openGoal(item); }, expanded => {
-					if (expanded) this.expanded.add(key); else this.expanded.delete(key);
-					this.app.workspace.requestSaveLayout();
-				}, this.expanded.has(key)));
+				card = this.addChild(new PaceCard(section.grid, item, entry => { void this.openEntry(entry); }));
 				this.cards.set(key, card);
 			}
-			card.update(goal, history, this.service.observedAt);
-			if (this.grid.children[index] !== card.container) this.grid.insertBefore(card.container, this.grid.children[index] ?? null);
+			card.update(item);
+			if (section.grid.children[index] !== card.container) {
+				const focused = card.container.ownerDocument.activeElement as HTMLElement | null;
+				const restoreFocus = focused !== null && card.container.contains(focused);
+				section.grid.insertBefore(card.container, section.grid.children[index] ?? null);
+				if (restoreFocus) focused.focus({ preventScroll: true });
+			}
 		}
+		for (const [kind, section] of this.sections) section.container.hidden = !positions.get(kind);
 		for (const [key, card] of this.cards) if (!keys.has(key)) {
 			this.removeChild(card); card.container.remove(); this.cards.delete(key);
 		}
 	}
 
-	private async openGoal(goal: GoalSnapshot): Promise<void> {
-		try { await openNoteInCurrentTab(this.app.vault, this.leaf, goal.entry.file.path, goal.entry.line); }
-		catch (error: unknown) { console.error('horizon: could not open goal', error); new Notice('Could not open the goal.'); }
+	private async openEntry(item: PaceSnapshot): Promise<void> {
+		try { await openNoteInCurrentTab(this.app.vault, this.leaf, item.entry.file.path, item.entry.line); }
+		catch (error: unknown) { console.error('horizon: could not open insights note', error); new Notice('Could not open the note.'); }
 	}
 }

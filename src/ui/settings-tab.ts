@@ -1,13 +1,18 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import type HorizonPlugin from '../main';
 import { validContentWidth } from '../settings';
+import { suppressHorizonTooltips } from './tooltips';
 
 export class HorizonSettingsTab extends PluginSettingTab {
+	private stopTooltips: (() => void) | undefined;
 	constructor(app: App, private plugin: HorizonPlugin) {
 		super(app, plugin);
+		this.plugin.register(() => this.hide());
 	}
 
 	display(): void {
+		this.stopTooltips?.();
+		this.stopTooltips = suppressHorizonTooltips(this.containerEl);
 		this.containerEl.empty();
 		new Setting(this.containerEl)
 			.setName('Use theme content width')
@@ -36,5 +41,9 @@ export class HorizonSettingsTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+	}
+
+	hide(): void {
+		this.stopTooltips?.(); this.stopTooltips = undefined;
 	}
 }

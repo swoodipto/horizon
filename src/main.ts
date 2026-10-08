@@ -28,7 +28,7 @@ export default class HorizonPlugin extends Plugin {
 		this.dataStore = new PluginDataStore(await this.loadData(), data => this.saveData(data));
 		this.settings = this.dataStore.settings;
 		const insights = new InsightsService(this.dataStore);
-		const progress = new GoalProgressSync(this.app, goals => insights.accept(goals));
+		const progress = new GoalProgressSync(this.app, (goals, projects) => insights.accept(goals, projects));
 		insights.start(this, () => progress.refresh());
 		this.sidebar = new SidebarManager(
 			this.app.workspace,

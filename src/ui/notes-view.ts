@@ -1,5 +1,6 @@
 import { debounce, ItemView, Notice, parseFrontMatterTags, setIcon, ViewStateResult, WorkspaceLeaf } from 'obsidian';
 import { SIDEBAR_SECTIONS, SidebarOption } from './sidebar-options';
+import { suppressHorizonTooltips } from './tooltips';
 import { DEPENDENT_ICON, HORIZON_ICON, PARENT_CHILD_ICON } from './icons';
 import { findTaggedEntries } from './tagged-notes';
 import type { HorizonSettings } from '../settings';
@@ -31,11 +32,13 @@ import { NoteActionHistory } from './note-action-history';
 import { HistoryKeyboard } from './history-keyboard';
 import { LaterItemsAnimation } from './later-items-animation';
 import { goalProgress, renderGoalProgressIcon } from './goal-progress';
+import { projectTaskProgress } from './project-task-progress';
 import { taggedMetadataReader } from './tagged-metadata';
 
 export const HORIZON_NOTES_VIEW_TYPE = 'horizon-tagged-notes';
 
 export class HorizonNotesView extends ItemView {
+	private stopTooltips: (() => void) | undefined;
 	navigation = false;
 	private selectedOption = 'life-areas';
 	private resultsEl: HTMLElement | undefined;
@@ -141,6 +144,8 @@ export class HorizonNotesView extends ItemView {
 	}
 
 	onOpen(): Promise<void> {
+		this.stopTooltips = suppressHorizonTooltips(this.contentEl);
+		this.register(() => this.stopTooltips?.());
 		this.contentEl.empty();
 		this.contentEl.addClass('horizon-notes');
 		this.contentEl.setAttribute('tabindex', '-1');
@@ -263,6 +268,7 @@ export class HorizonNotesView extends ItemView {
 	}
 
 	onClose(): Promise<void> {
+		this.stopTooltips?.(); this.stopTooltips = undefined;
 		this.pendingHighlight = undefined;
 		this.laterAnimation.reset();
 		this.history.clear();
@@ -373,7 +379,7 @@ export class HorizonNotesView extends ItemView {
 				? goalProgress(entries,
 					await findTaggedEntries(files, getMetadata, file => this.app.vault.cachedRead(file), '#project'),
 					entry => this.projectStatus(entry).tag,
-					entry => this.app.metadataCache.getFileCache(entry.file)?.frontmatter?.progress)
+					entry => projectTaskProgress(entry, this.app.metadataCache.getFileCache(entry.file)?.listItems))
 				: new Map<TaggedEntry<TFile>, number>();
 			if (version !== this.renderVersion || results !== this.resultsEl) return;
 			const hasDeadlines = isProject || option.id === 'goals';

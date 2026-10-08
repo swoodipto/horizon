@@ -1,6 +1,7 @@
 import { App, Component, Modal } from 'obsidian';
 import { parseDate } from './dates';
 import { planningWarnings } from './dependencies';
+import { suppressHorizonTooltips } from '../ui/tooltips';
 import type { PlanningProject, ProjectDates } from './types';
 
 interface EditorOptions {
@@ -20,6 +21,7 @@ export class PlanningEditor extends Modal {
 
 	onOpen(): void {
 		this.bindings.load();
+		this.bindings.register(suppressHorizonTooltips(this.modalEl));
 		this.contentEl.addClass('horizon-planning-editor');
 		this.setTitle(this.options.project ? 'Plan project' : 'Create project');
 		const form = this.contentEl.createEl('form');

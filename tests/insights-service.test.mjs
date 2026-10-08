@@ -58,6 +58,18 @@ test('observations publish while the view is closed, debounce saves and retain p
 	assert.equal(f.saved.at(-1).insights.goals[0].points.at(-1).completed, 1);
 	f.service.accept([snapshot('started')]); assert.equal(f.service.goals[0].completed, 1);
 });
+
+test('linked project snapshots publish while closed without adding project percentage history', t => {
+	const f = fixture(t), project = { kind: 'project', identity: { path: 'Project.md' }, entry: {}, progress: 40,
+		start: '2026-10-04', deadline: '2026-10-18' };
+	let renders = 0; f.service.subscribe(() => renders++);
+	f.service.accept([snapshot('started')], [project]);
+	assert.equal(f.service.projects[0].progress, 40);
+	f.advance(1000); f.service.accept([snapshot('started')], [{ ...project, progress: 85 }]);
+	assert.equal(f.service.projects[0].progress, 85); assert.equal(renders, 2);
+	assert.deepEqual(f.data.history.goals.map(goal => goal.identity.path), ['Folder/Goal.md']);
+	f.dispose(); f.service.accept([], []); assert.equal(f.service.projects[0].progress, 85);
+});
 test('hourly and local-midnight checkpoints request fresh evaluation, not invented backfills', t => {
 	const f = fixture(t); f.service.accept([snapshot('started')]);
 	for (let minute = 1; minute <= 60; minute++) { f.advance(60_000); f.tick(); }
