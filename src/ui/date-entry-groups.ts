@@ -6,7 +6,7 @@ export interface DateEntryGroup<T> {
 	entries: T[];
 }
 
-/** Someday takes precedence over dates; upcoming stays flat to preserve date order. */
+/** Someday takes precedence over dates; relationships nest within each section. */
 export function groupEntriesByDate<T>(entries: readonly T[], getMetadata: (entry: T) => {
 	status: string; start?: unknown; deadline?: unknown;
 }): DateEntryGroup<T>[] {
@@ -23,7 +23,7 @@ export function groupEntriesByDate<T>(entries: readonly T[], getMetadata: (entry
 	upcoming.sort((a, b) => a.date.localeCompare(b.date));
 	const groups: DateEntryGroup<T>[] = [];
 	if (undated.length) groups.push({ entries: undated, nest: true });
-	if (upcoming.length) groups.push({ label: 'Upcoming', entries: upcoming.map(item => item.entry), nest: false });
+	if (upcoming.length) groups.push({ label: 'Upcoming', entries: upcoming.map(item => item.entry), nest: true });
 	if (someday.length) groups.push({ label: 'Someday', entries: someday, nest: true });
 	return groups;
 }
