@@ -6,9 +6,10 @@ type Value = { present: boolean; value?: unknown };
 type PropertyChange = { key: string; before: Value; after: Value };
 type LineChange = { index: number; before: string; after: string };
 type Change = { path: string } & (
-	{ kind: 'properties'; changes: PropertyChange[] } | { kind: 'lines'; changes: LineChange[] }
+	{ kind: 'properties'; changes: PropertyChange[] } | { kind: 'lines'; changes: LineChange[] } |
+	{ kind: 'custom'; undo: () => Promise<void>; redo: () => Promise<void> }
 );
-const PROPERTIES = ['tags', 'parent', 'dependent', DATE_PROPERTIES.start, 'deadline'];
+const PROPERTIES = ['completed date', 'tags', 'parent', 'dependent', DATE_PROPERTIES.start, 'deadline'];
 const snapshot = (properties: Record<string, unknown>, key: string): Value => ({
 	present: Object.prototype.hasOwnProperty.call(properties, key), value: structuredClone(properties[key]),
 });
@@ -25,6 +26,20 @@ export class NoteActionHistory {
 	constructor(private app: WriteApp) {}
 
 	clear(): void { this.generation++; this.undoStack = []; this.redoStack = []; }
+
+	/** A content transfer supplies guarded inverses, never whole-note snapshots. */
+	async recordTransfer(action: () => Promise<{ undo: () => Promise<void>; redo: () => Promise<void> }>): Promise<void> {
+		if (this.busy) throw new Error('Wait for the current change to finish.');
+		this.busy = true;
+		const generation = this.generation;
+		try {
+			const replay = await action();
+			if (generation === this.generation) {
+				this.undoStack.push([{ path: '', kind: 'custom', ...replay }]);
+				this.undoStack = this.undoStack.slice(-50); this.redoStack = [];
+			}
+		} finally { this.busy = false; }
+	}
 
 	async record(action: (app: WriteApp) => Promise<void>): Promise<void> {
 		if (this.busy) throw new Error('Wait for the current change to finish.');
@@ -117,6 +132,7 @@ export class NoteActionHistory {
 	}
 
 	private async replay(change: Change, undo: boolean): Promise<void> {
+		if (change.kind === 'custom') return undo ? change.undo() : change.redo();
 		const file = this.app.vault.getFileByPath(change.path);
 		if (!file) throw new Error('The note no longer exists.');
 		if (change.kind === 'properties') {

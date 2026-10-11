@@ -64,7 +64,7 @@ export function evaluateGoalProgress<T extends { path: string }>(
 			if (child.relationship === 'parent') values.push({ entry: child.entry, progress: progress.get(child.entry) ?? 0 });
 		}
 		contributors.set(node.entry, values);
-		progress.set(node.entry, values.length
+		progress.set(node.entry, node.entry.completionTagged ? 100 : values.length
 			? values.reduce((total, value) => total + value.progress, 0) / values.length : 0);
 	}
 	return { progress, contributors };

@@ -31,7 +31,7 @@ export async function setDeadline(app: Pick<App, 'vault' | 'fileManager'>, path:
 }
 
 export async function setNoteDate(app: Pick<App, 'vault' | 'fileManager'>, path: string,
-	property: 'start' | 'deadline', value: string): Promise<void> {
+	property: 'start' | 'deadline' | 'completed', value: string): Promise<void> {
 	const date = value === '' ? undefined : parseDate(value);
 	if (value && !date) throw new Error('Enter a valid calendar date.');
 	const file = app.vault.getFileByPath(path);
@@ -43,7 +43,8 @@ export async function setNoteDate(app: Pick<App, 'vault' | 'fileManager'>, path:
 			(property === 'start' && deadline && date > deadline))) {
 			throw new Error('The deadline cannot be before the start date.');
 		}
-		if (date) properties[DATE_PROPERTIES[property]] = date;
-		else delete properties[DATE_PROPERTIES[property]];
+		const key = property === 'completed' ? 'completed date' : DATE_PROPERTIES[property];
+		if (date) properties[key] = date;
+		else delete properties[key];
 	});
 }

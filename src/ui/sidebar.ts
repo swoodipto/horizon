@@ -17,6 +17,10 @@ import { projectTaskProgress } from './project-task-progress';
 import { activeSubgoalCount, sidebarGoalGroups, sidebarGoals, sidebarProjects } from './sidebar-active-entries';
 import type { EntryNode } from './entry-tree';
 import { suppressHorizonTooltips } from './tooltips';
+import { HORIZON_NOTES_VIEW_TYPE } from './notes-view';
+import { HORIZON_INSIGHTS_VIEW_TYPE } from '../insights/view';
+import { HORIZON_PLANNING_VIEW_TYPE } from '../planning/view';
+import { currentSidebarEntries, type SidebarEntryIdentity } from './sidebar-current-entry';
 
 export const HORIZON_VIEW_TYPE = 'horizon-sidebar';
 const HIDDEN_SIDEBAR_OPTIONS = new Set(['upcoming', 'timeline']);
@@ -24,6 +28,7 @@ const HIDDEN_SIDEBAR_OPTIONS = new Set(['upcoming', 'timeline']);
 export class HorizonSidebarView extends ItemView {
 	navigation = false;
 	private selectedOption = 'life-areas';
+	private activeEntry: SidebarEntryIdentity | undefined;
 	private optionButtons = new Map<string, HTMLElement>();
 	private optionToggles = new Map<string, HTMLButtonElement>();
 	private goalsEl: HTMLElement | undefined;
@@ -55,7 +60,7 @@ export class HorizonSidebarView extends ItemView {
 	selectOption(option: SidebarOption): void {
 		this.selectedOption = option.id;
 		this.updateSelection();
-		if (option.tag || isPlanningOption(option) || option.id === 'insights') void this.openNotes(option);
+		if (option.tag || isPlanningOption(option) || option.id === 'insights' || option.id === 'completed') void this.openNotes(option);
 		else new Notice(`${option.label}: test action.`);
 	}
 
@@ -106,7 +111,9 @@ export class HorizonSidebarView extends ItemView {
 		this.registerEvent(this.app.metadataCache.on('resolved', () => refresh()));
 		this.registerEvent(this.app.vault.on('delete', () => refresh()));
 		this.registerEvent(this.app.vault.on('rename', () => refresh()));
-		this.updateSelection();
+		this.registerEvent(this.app.workspace.on('active-leaf-change', () => this.syncActiveView()));
+		this.registerEvent(this.app.workspace.on('file-open', () => this.syncActiveView()));
+		this.syncActiveView();
 		void this.renderSidebarEntries();
 		return Promise.resolve();
 	}
@@ -119,6 +126,7 @@ export class HorizonSidebarView extends ItemView {
 		this.optionToggles.clear();
 		this.goalsEl = undefined;
 		this.projectsEl = undefined;
+		this.activeEntry = undefined;
 		this.renderVersion++;
 		this.contentEl.empty();
 		return Promise.resolve();
@@ -165,7 +173,12 @@ export class HorizonSidebarView extends ItemView {
 			if (!entryButton || !path || !list.contains(entryButton)) return;
 			const value = entryButton.getAttribute('data-note-line');
 			const line = value === null ? undefined : Number(value);
-			void this.openEntry(path, line).catch((error: unknown) => {
+			void this.openEntry(path, line).then(() => {
+				this.selectedOption = option.id;
+				this.activeEntry = { path, line };
+				this.updateSelection();
+				this.updateEntrySelection();
+			}).catch((error: unknown) => {
 				console.error('horizon: could not open the entry', error);
 				new Notice('Could not open the entry.');
 			});
@@ -234,6 +247,7 @@ export class HorizonSidebarView extends ItemView {
 				}
 			}
 			projectsEl.parentElement?.toggleClass('has-entries', projectsEl.childElementCount > 0);
+			this.updateEntrySelection();
 		} catch (error) {
 			console.error('horizon: could not load sidebar entries', error);
 			if (version === this.renderVersion) {
@@ -313,6 +327,34 @@ export class HorizonSidebarView extends ItemView {
 			button.setAttribute('aria-pressed', String(selected));
 		}
 		for (const [id, toggle] of this.optionToggles) toggle.toggleClass('is-active', id === this.selectedOption);
+	}
+
+	private syncActiveView(): void {
+		const state = this.app.workspace.getMostRecentLeaf()?.getViewState();
+		const path = state?.type === 'markdown' && typeof state.state?.file === 'string' ? state.state.file : undefined;
+		if (!path) this.activeEntry = undefined;
+		else if (this.activeEntry?.path !== path) this.activeEntry = { path };
+		if (state?.type === HORIZON_NOTES_VIEW_TYPE || state?.type === HORIZON_PLANNING_VIEW_TYPE) {
+			const optionId = state.state?.optionId;
+			if (typeof optionId === 'string' && SIDEBAR_SECTIONS.some(section => section.options.some(option => option.id === optionId))) {
+				this.selectedOption = optionId;
+			}
+		} else if (state?.type === HORIZON_INSIGHTS_VIEW_TYPE) this.selectedOption = 'insights';
+		this.updateSelection();
+		this.updateEntrySelection();
+	}
+
+	private updateEntrySelection(): void {
+		const buttons = Array.from(this.contentEl.querySelectorAll<HTMLButtonElement>('button.horizon-sidebar-entry'));
+		const entries = buttons.map(button => ({ button, path: button.getAttribute('data-note-path') ?? '',
+			line: button.hasAttribute('data-note-line') ? Number(button.getAttribute('data-note-line')) : undefined }));
+		const current = new Set(currentSidebarEntries(entries, this.activeEntry).map(entry => entry.button));
+		for (const button of buttons) {
+			const selected = current.has(button);
+			button.toggleClass('is-current', selected);
+			if (selected) button.setAttribute('aria-current', 'page');
+			else button.removeAttribute('aria-current');
+		}
 	}
 
 }

@@ -1,3 +1,4 @@
+import { newestCompletedFirst } from './completed-items';
 import { debounce, ItemView, Notice, parseFrontMatterTags, setIcon, ViewStateResult, WorkspaceLeaf } from 'obsidian';
 import { SIDEBAR_SECTIONS, SidebarOption } from './sidebar-options';
 import { suppressHorizonTooltips } from './tooltips';
@@ -20,12 +21,12 @@ import { OptionKeyboardShortcuts } from './option-keyboard-shortcuts';
 import { ProjectStatusKeyboard } from './project-status-keyboard';
 import { NoteDateEditor } from './note-date-editor';
 import { renderDeadlineControl } from './deadline-control';
-import { DATE_PROPERTIES, today } from '../planning/dates';
+import { today } from '../planning/dates';
 import { RowActionKeyboard } from './row-action-keyboard';
 import { NOTE_ACTION_SHORTCUTS, noteActionShortcut } from './note-action-shortcuts';
 import { RelationPicker } from './relation-picker';
 import { formatDeadline, formatStartDate } from './deadline';
-import { groupEntriesByDate, type DateEntryGroup } from './date-entry-groups';
+import { groupEntriesByDate } from './date-entry-groups';
 import { FilterKeyboardNavigation } from './filter-keyboard-navigation';
 import { LaterItemsKeyboard } from './later-items-keyboard';
 import { NoteActionHistory } from './note-action-history';
@@ -34,6 +35,10 @@ import { LaterItemsAnimation } from './later-items-animation';
 import { goalProgress, renderGoalProgressIcon } from './goal-progress';
 import { projectTaskProgress } from './project-task-progress';
 import { taggedMetadataReader } from './tagged-metadata';
+import { entryDates, dateTarget } from './entry-dates';
+import { boardPreferences, type BoardPreferences } from './project-board-model';
+import { ProjectViewControls } from './project-view-controls';
+import { ProjectBoard } from './project-board';
 
 export const HORIZON_NOTES_VIEW_TYPE = 'horizon-tagged-notes';
 
@@ -63,6 +68,9 @@ export class HorizonNotesView extends ItemView {
 	private laterKeyboard: LaterItemsKeyboard | undefined;
 	private history: NoteActionHistory;
 	private historyKeyboard: HistoryKeyboard | undefined;
+	private boardPreferences: BoardPreferences = boardPreferences(undefined);
+	private viewControls?: ProjectViewControls;
+	private board?: ProjectBoard;
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -88,12 +96,13 @@ export class HorizonNotesView extends ItemView {
 
 	applySettings(): void {
 		const settings = this.getSettings();
-		this.contentEl.toggleClass('horizon-custom-width', !settings.useThemeContentWidth);
+		const isBoard = this.selectedOption === 'projects' && this.boardPreferences.mode === 'kanban';
+		this.contentEl.toggleClass('horizon-custom-width', !isBoard && !settings.useThemeContentWidth);
 		this.contentEl.setCssProps({ '--horizon-content-width': `${settings.customContentWidth}px` });
 		// Obsidian exposes this preference through Vault at runtime.
 		const vault = this.app.vault as typeof this.app.vault & { getConfig?: (key: string) => unknown };
 		this.previewEl?.toggleClass('is-readable-line-width',
-			settings.useThemeContentWidth && vault.getConfig?.('readableLineLength') !== false);
+			!isBoard && settings.useThemeContentWidth && vault.getConfig?.('readableLineLength') !== false);
 	}
 
 	private option(): SidebarOption | undefined {
@@ -109,7 +118,7 @@ export class HorizonNotesView extends ItemView {
 		if (title) title.textContent = this.getDisplayText();
 	}
 	getState(): Record<string, unknown> {
-		return { optionId: this.selectedOption, statusFilter: this.statusFilter, showLaterItems: this.showLaterItems };
+		return { optionId: this.selectedOption, statusFilter: this.statusFilter, showLaterItems: this.showLaterItems, projectBoard: this.boardPreferences };
 	}
 	focus(): void { this.contentEl.focus({ preventScroll: true }); }
 	highlightEntry(path: string, line?: number): void {
@@ -118,10 +127,11 @@ export class HorizonNotesView extends ItemView {
 	}
 
 	setState(state: unknown, _result: ViewStateResult): Promise<void> {
+		if (state && typeof state === 'object' && 'projectBoard' in state) this.boardPreferences = boardPreferences(state.projectBoard, this.boardPreferences);
 		if (state && typeof state === 'object' && 'optionId' in state) {
 			this.pendingHighlight = undefined;
 			const option = SIDEBAR_SECTIONS.flatMap(section => section.options)
-				.find(item => item.id === state.optionId && item.tag);
+				.find(item => item.id === state.optionId && (item.tag || item.id === 'completed'));
 			if (option && option.id !== this.selectedOption) {
 				this.selectedOption = option.id;
 				this.pills.reset();
@@ -149,32 +159,40 @@ export class HorizonNotesView extends ItemView {
 		this.contentEl.empty();
 		this.contentEl.addClass('horizon-notes');
 		this.contentEl.setAttribute('tabindex', '-1');
+		this.viewControls = this.addChild(new ProjectViewControls(this.contentEl,
+			() => this.selectedOption === 'projects' && !this.menus.isOpen && !this.board?.isInteracting && this.app.workspace.getActiveViewOfType(HorizonNotesView) === this,
+			() => this.boardPreferences, preferences => {
+				if (this.board?.isInteracting) return;
+				this.boardPreferences = preferences;
+				this.keyboardNavigation?.reset();
+				void this.renderNotes(); this.app.workspace.requestSaveLayout();
+			}));
 		this.historyKeyboard = this.addChild(new HistoryKeyboard(this.contentEl,
 			() => !this.menus.isOpen && this.app.workspace.getActiveViewOfType(HorizonNotesView) === this,
 			redo => { void this.replayHistory(redo); },
 		));
 		this.filterKeyboard = this.addChild(new FilterKeyboardNavigation(this.contentEl,
-			() => this.selectedOption === 'projects' && !this.menus.isOpen &&
+			() => this.selectedOption === 'projects' && this.boardPreferences.mode === 'list' && !this.menus.isOpen &&
 				this.app.workspace.getActiveViewOfType(HorizonNotesView) === this,
 			(direction, multiple) => this.pills.step(direction, multiple),
 		));
 		this.laterKeyboard = this.addChild(new LaterItemsKeyboard(this.contentEl,
-			() => this.selectedOption === 'projects' && !this.menus.isOpen &&
+			() => this.selectedOption === 'projects' && this.boardPreferences.mode === 'list' && !this.menus.isOpen &&
 				this.app.workspace.getActiveViewOfType(HorizonNotesView) === this,
 			() => this.toggleLaterItems(),
 		));
 		this.statusKeyboard = this.addChild(new ProjectStatusKeyboard(
-			this.contentEl, () => this.selectedOption === 'projects' && !this.menus.isOpen,
+			this.contentEl, () => ['projects', 'goals', 'completed'].includes(this.selectedOption) && !this.menus.isOpen,
 			button => this.openStatus(button),
 		));
 		this.deadlineKeyboard = this.addChild(new RowActionKeyboard(this.contentEl, {
 			...NOTE_ACTION_SHORTCUTS.deadline, row: '.horizon-deadline-row', button: 'a.horizon-note-link',
-			enabled: () => (this.selectedOption === 'projects' || this.selectedOption === 'goals') && !this.menus.isOpen,
+			enabled: () => ['projects', 'goals', 'completed'].includes(this.selectedOption) && !this.menus.isOpen,
 			open: button => this.openDeadline(button),
 		}));
 		this.startKeyboard = this.addChild(new RowActionKeyboard(this.contentEl, {
 			...NOTE_ACTION_SHORTCUTS.start, row: '.horizon-deadline-row', button: 'a.horizon-note-link',
-			enabled: () => (this.selectedOption === 'projects' || this.selectedOption === 'goals') && !this.menus.isOpen,
+			enabled: () => ['projects', 'goals', 'completed'].includes(this.selectedOption) && !this.menus.isOpen,
 			open: link => this.openDeadline(link, 'start'),
 		}));
 		for (const property of ['parent', 'dependent'] as const) {
@@ -209,9 +227,17 @@ export class HorizonNotesView extends ItemView {
 			cls: 'horizon-note-results', attr: { 'aria-live': 'polite' },
 		});
 		this.pills.bind(this.resultsEl);
+		this.board = this.addChild(new ProjectBoard(this.app, this.resultsEl, this.history, () => this.renderNotes(),
+			() => this.selectedOption === 'projects' && this.boardPreferences.mode === 'kanban' && !this.menus.isOpen && this.app.workspace.getActiveViewOfType(HorizonNotesView) === this,
+			(path, line, lane) => this.keyboardNavigation?.selectEntry(path, line, lane) ?? false));
 		// Delegate clicks so metadata refreshes do not accumulate link listeners.
 		this.registerDomEvent(this.resultsEl, 'click', (event) => {
 			const target = event.target as HTMLElement | null;
+			const datePill = target?.closest<HTMLElement>('button.horizon-kanban-date');
+			if (datePill) {
+				event.preventDefault(); event.stopPropagation();
+				this.openDeadline(datePill, datePill.getAttribute('data-date-property') === 'start' ? 'start' : 'deadline'); return;
+			}
 			if (target?.closest('button.horizon-later-toggle')) {
 				event.preventDefault();
 				event.stopPropagation();
@@ -232,10 +258,12 @@ export class HorizonNotesView extends ItemView {
 				this.openStatus(statusButton, event);
 				return;
 			}
-			const link = target?.closest?.('a.horizon-note-link');
-			const path = link?.getAttribute('data-note-path');
+			const link = target?.closest<HTMLElement>('a.horizon-note-link');
+			if (!link && target?.closest('button, a, input, select, textarea, [role="button"]')) return;
+			const entry = link ?? target?.closest<HTMLElement>('.horizon-kanban-card');
+			const path = entry?.getAttribute('data-note-path');
 			if (!path) return;
-			const lineValue = link?.getAttribute('data-note-line');
+			const lineValue = entry?.getAttribute('data-note-line');
 			const line = lineValue == null ? undefined : Number(lineValue);
 			event.preventDefault();
 			void openNoteInCurrentTab(this.app.vault, this.leaf, path, line).catch((error: unknown) => {
@@ -249,7 +277,7 @@ export class HorizonNotesView extends ItemView {
 			const day = today();
 			if (day !== currentDay) {
 				currentDay = day;
-				if (this.selectedOption === 'projects' || this.selectedOption === 'goals') refresh();
+				if (['projects', 'goals', 'completed'].includes(this.selectedOption)) refresh();
 			}
 		}, 60_000));
 		this.register(() => this.menus.close());
@@ -268,6 +296,8 @@ export class HorizonNotesView extends ItemView {
 	}
 
 	onClose(): Promise<void> {
+		if (this.board) this.removeChild(this.board); this.board = undefined;
+		if (this.viewControls) this.removeChild(this.viewControls); this.viewControls = undefined;
 		this.stopTooltips?.(); this.stopTooltips = undefined;
 		this.pendingHighlight = undefined;
 		this.laterAnimation.reset();
@@ -336,15 +366,19 @@ export class HorizonNotesView extends ItemView {
 	private openStatus(button: HTMLElement, event?: MouseEvent): void {
 		const buttons = (this.keyboardNavigation?.actionRows(button) ?? [])
 			.map(row => row.parentElement?.querySelector<HTMLElement>('button.horizon-project-status'))
-			.filter((item): item is HTMLElement => !!item);
-		this.menus.openStatus(button, event, buttons.length ? buttons : [button]);
+			.filter((item): item is HTMLElement => !!item && item.getAttribute('data-entry-kind') === button.getAttribute('data-entry-kind'));
+		if (button.getAttribute('data-entry-kind') === 'goals') this.menus.openGoal(button, event, buttons.length ? buttons : [button], this.selectedOption === 'completed');
+		else this.menus.openStatus(button, event, buttons.length ? buttons : [button]);
 	}
 
 	private openDeadline(button: HTMLElement, property: 'start' | 'deadline' = 'deadline'): void {
 		const path = button.getAttribute('data-note-path');
 		if (!path) return;
 		this.deadlineEditor?.close();
-		this.deadlineEditor = new NoteDateEditor(this.app, () => this.renderNotes(), property, this.actionPaths(button), this.history);
+		const targets = (this.keyboardNavigation?.actionRows(button) ?? [button])
+			.map(row => dateTarget(row, row.getAttribute('data-entry-kind') === 'projects' || this.selectedOption === 'projects')).filter(target => target !== undefined);
+		const unique = [...new Map(targets.map(target => [JSON.stringify([target.path, target.line ?? null]), target])).values()];
+		this.deadlineEditor = new NoteDateEditor(this.app, () => this.renderNotes(), property, unique, this.history);
 		this.deadlineEditor.open();
 	}
 
@@ -357,34 +391,44 @@ export class HorizonNotesView extends ItemView {
 	}
 
 	private async renderNotes(): Promise<void> {
+		if (this.board?.isInteracting) return;
 		const version = ++this.renderVersion;
 		const results = this.resultsEl;
 		if (!results) return;
 		const option = this.option();
-		if (!option?.tag) {
+		const isCompleted = option?.id === 'completed';
+		if (!option || (!option.tag && !isCompleted)) {
 			results.hidden = true;
 			return;
 		}
 		results.hidden = false;
-		const tag = option.tag;
+		const tag = option.tag ?? '#goal';
 		try {
 			const files = this.app.vault.getMarkdownFiles();
 			const getMetadata = taggedMetadataReader(this.app);
-			let entries = await findTaggedEntries(files, getMetadata, file => this.app.vault.cachedRead(file), tag);
+			let entries = await findTaggedEntries(files, getMetadata, file => this.app.vault.cachedRead(file), tag, option.id === 'goals' || isCompleted);
 			// A category change, metadata refresh, or close supersedes pending reads.
 			if (version !== this.renderVersion || results !== this.resultsEl) return;
 			const isProject = option.id === 'projects';
+			const isBoard = isProject && this.boardPreferences.mode === 'kanban';
+			this.contentEl.toggleClass('horizon-kanban-view', isBoard);
+			this.contentEl.toggleClass('horizon-completed-view', isCompleted);
+			this.applySettings();
 			const isGoal = option.id === 'goals';
-			const progress = isGoal && entries.length
-				? goalProgress(entries,
-					await findTaggedEntries(files, getMetadata, file => this.app.vault.cachedRead(file), '#project'),
+			const goals = isGoal || isCompleted ? entries : [];
+			const projects = isGoal || isCompleted ? await findTaggedEntries(files, getMetadata, file => this.app.vault.cachedRead(file), '#project') : entries;
+			const completedGoals = goals.filter(entry => entry.completionTagged);
+			const completedProjects = projects.filter(entry => this.projectStatus(entry).tag === 'completed');
+			const progress = (isGoal || isCompleted) && goals.length
+				? goalProgress(goals, projects,
 					entry => this.projectStatus(entry).tag,
 					entry => projectTaskProgress(entry, this.app.metadataCache.getFileCache(entry.file)?.listItems))
 				: new Map<TaggedEntry<TFile>, number>();
 			if (version !== this.renderVersion || results !== this.resultsEl) return;
-			const hasDeadlines = isProject || option.id === 'goals';
+			entries = isCompleted ? [...completedGoals, ...completedProjects] : isProject ? entries.filter(entry => this.projectStatus(entry).tag !== 'completed') : isGoal ? entries.filter(entry => !entry.completionTagged) : entries;
+			const hasDeadlines = isProject || isGoal || isCompleted;
 			const statuses = isProject ? availableProjectStatuses(entries, entry => this.projectStatus(entry)) : [];
-			if (isProject) {
+			if (isProject && !isBoard) {
 				const filter = reconcileProjectFilter(this.statusFilter, statuses);
 				if (projectFilterLabel(filter) !== projectFilterLabel(this.statusFilter)) {
 					this.statusFilter = filter;
@@ -393,6 +437,7 @@ export class HorizonNotesView extends ItemView {
 				entries = filterProjectEntries(entries, this.statusFilter, entry => this.projectStatus(entry));
 			}
 			this.pills.beforeRender();
+			this.board?.beforeRender();
 			this.keyboardNavigation?.beforeRender();
 			const laterToggleFocused = results.querySelector('button.horizon-later-toggle') === results.ownerDocument.activeElement;
 			this.laterAnimation.reset();
@@ -402,11 +447,16 @@ export class HorizonNotesView extends ItemView {
 			const heading = results.createDiv({ cls: 'inline-title horizon-results-heading' });
 			heading.createEl('h3', { cls: 'horizon-inline-title horizon-no-select', text: option.label });
 			heading.createSpan({ cls: 'horizon-note-count', text: String(entries.length) });
+			if (isProject) this.viewControls?.render(heading);
+			if (isBoard) {
+				this.board?.render(entries, entry => this.projectStatus(entry).tag, this.boardPreferences);
+				this.keyboardNavigation?.afterRender(); this.board?.afterRender(); return;
+			}
 			if (isProject) this.pills.render(results, statuses);
 			if (!entries.length) {
-				results.createEl('p', { cls: 'horizon-empty-state', text: isProject && this.statusFilter !== 'all'
+				results.createEl('p', { cls: 'horizon-empty-state', text: isCompleted ? 'No completed goals or projects.' : isProject && this.statusFilter !== 'all'
 					? `No projects with ${this.statusFilter.length > 1 ? 'statuses' : 'status'} ${projectFilterLabel(this.statusFilter)}.`
-					: `No notes tagged ${tag}.` });
+					: isProject || isGoal ? `No active ${option.label.toLowerCase()}.` : `No notes tagged ${tag}.` });
 				this.keyboardNavigation?.afterRender();
 				this.pendingHighlight = undefined;
 				return;
@@ -417,10 +467,12 @@ export class HorizonNotesView extends ItemView {
 				paths.add(file.path);
 				names.set(file.basename, paths);
 			}
-			const groups: DateEntryGroup<TaggedEntry<TFile>>[] = isProject
+			const newestFirst = (items: TaggedEntry<TFile>[]) => newestCompletedFirst(items, entry => entryDates(entry, this.app.metadataCache.getFileCache(entry.file)?.frontmatter).completed);
+			const groups: { label?: string; entries: TaggedEntry<TFile>[]; nest?: boolean }[] = isCompleted
+				? [{ label: 'Goals', entries: newestFirst(completedGoals), nest: false }, { label: 'Projects', entries: newestFirst(completedProjects), nest: false }].filter(group => group.entries.length) : isProject
 				? groupEntriesByDate(entries, entry => {
 					const properties = this.app.metadataCache.getFileCache(entry.file)?.frontmatter;
-					return { status: this.projectStatus(entry).tag, start: properties?.[DATE_PROPERTIES.start], deadline: properties?.deadline };
+					return { status: this.projectStatus(entry).tag, ...entryDates(entry, properties) };
 				}) : [{ entries, nest: true }];
 			const filteredList = isProject && this.statusFilter !== 'all'
 				? results.createEl('ul', { cls: 'horizon-note-list' }) : undefined;
@@ -442,43 +494,47 @@ export class HorizonNotesView extends ItemView {
 				const list = filteredList ?? container.createEl('ul', { cls: 'horizon-note-list' });
 				const nodes: EntryNode<TFile>[] = group.nest ? nestTaggedEntries(group.entries)
 					: group.entries.map(entry => ({ entry, children: [] }));
-				return nodes.map(node => ({ node, list, nested: false }));
+				return nodes.map(node => ({ node, list, nested: false, kind: isCompleted ? group.label?.toLowerCase() ?? '' : option.id }));
 			}).reverse();
 			while (pending.length) {
 				const row = pending.pop();
 				if (!row) break;
+				const isProject = row.kind === 'projects';
+				const isGoal = row.kind === 'goals';
 				const entry = row.node.entry;
 				const parents = visibleEntryRelations(row.node);
 				const { file } = entry;
 				const item = row.list.createEl('li', { cls: 'horizon-note-item' });
 				const rowEl = hasDeadlines ? item.createDiv({ cls: 'horizon-deadline-row' }) : item;
-				if (isProject) rowEl.addClass('horizon-project-row');
-				if (isProject && row.nested) rowEl.addClass('is-nested');
+				if (isProject || isGoal) rowEl.addClass('horizon-project-row');
+				if ((isProject || isGoal) && row.nested) rowEl.addClass('is-nested');
 				const link = rowEl.createEl('a', {
 					cls: 'horizon-note-link',
 					attr: {
-						href: file.path, 'data-note-path': file.path,
+						href: file.path, 'data-note-path': file.path, 'data-entry-kind': row.kind,
 						'aria-label': isGoal ? `${entry.text}, ${Math.round(progress.get(entry) ?? 0)}% complete` : entry.text,
 					},
 				});
 				if (isProject) link.setAttribute('data-tooltip-classes', 'horizon-project-tooltip');
 				link.setAttribute('aria-keyshortcuts', [noteActionShortcut('parent'), noteActionShortcut('dependent'),
 					...(hasDeadlines ? [noteActionShortcut('start'), noteActionShortcut('deadline')] : []),
-					...(isProject ? [noteActionShortcut('status')] : [])].join(' '));
+					...(isProject || isGoal ? [noteActionShortcut('status')] : [])].join(' '));
 				if (entry.line !== undefined) link.setAttribute('data-note-line', String(entry.line));
+				if (entry.sourceLine !== undefined) link.setAttribute('data-source-line', entry.sourceLine);
 				if (row.nested) {
 					const branch = link.createSpan({ cls: 'horizon-note-branch', attr: { 'aria-hidden': 'true' } });
 					setIcon(branch, row.node.relationship === 'dependent' ? DEPENDENT_ICON : PARENT_CHILD_ICON);
 				}
 				const icon = link.createSpan({ cls: 'horizon-note-icon', attr: { 'aria-hidden': 'true' } });
-				if (isProject) {
+				if (isProject || isGoal) {
 					icon.addClass('horizon-project-icon-placeholder');
 					const status = this.projectStatus(entry);
 					const button = rowEl.createEl('button', {
 						cls: 'clickable-icon horizon-note-icon horizon-project-status',
 						attr: {
-							type: 'button', 'data-note-path': file.path,
-							'aria-label': 'Change project status',
+							type: 'button', 'data-note-path': file.path, 'data-entry-kind': row.kind,
+							'data-goal-completed': String(!!entry.completionTagged),
+							'aria-label': isGoal ? 'Change goal completion' : 'Change project status',
 							'aria-keyshortcuts': noteActionShortcut('status'),
 							'data-project-status': status.tag,
 							'data-tooltip-classes': 'horizon-project-tooltip',
@@ -487,11 +543,18 @@ export class HorizonNotesView extends ItemView {
 					});
 					if (entry.line !== undefined) button.setAttribute('data-note-line', String(entry.line));
 					if (entry.sourceLine !== undefined) button.setAttribute('data-source-line', entry.sourceLine);
-					setIcon(button, status.icon);
-				} else if (isGoal) renderGoalProgressIcon(icon, progress.get(entry) ?? 0);
-				else setIcon(icon, option.noteIcon ?? 'file-text');
-				if (hasDeadlines) {
-					const start: unknown = this.app.metadataCache.getFileCache(file)?.frontmatter?.[DATE_PROPERTIES.start];
+					if (isGoal) renderGoalProgressIcon(button, progress.get(entry) ?? 0);
+					else setIcon(button, status.icon);
+				} else setIcon(icon, option.noteIcon ?? 'file-text');
+				if (isCompleted) {
+					const date = entryDates(entry, this.app.metadataCache.getFileCache(file)?.frontmatter).completed;
+					const badge = link.createSpan({ cls: 'horizon-note-start',
+						attr: { 'aria-label': date ? `Completed date: ${date}` : 'No completed date' } });
+					badge.createSpan({ cls: 'horizon-note-start-label', text: date ? formatStartDate(date) : '—' });
+				}
+				if (hasDeadlines && !isCompleted) {
+					const properties = this.app.metadataCache.getFileCache(file)?.frontmatter;
+					const start: unknown = entryDates(isProject ? entry : {}, properties).start;
 					const formatted = formatStartDate(start);
 					if (formatted) {
 						const badge = link.createSpan({ cls: 'horizon-note-start',
@@ -516,12 +579,16 @@ export class HorizonNotesView extends ItemView {
 				if ((names.get(file.basename)?.size ?? 0) > 1) {
 					text.createSpan({ cls: 'horizon-note-path', text: file.path });
 				}
-				if (hasDeadlines) renderDeadlineControl(rowEl, file.path,
-					this.app.metadataCache.getFileCache(file)?.frontmatter?.deadline, entry.line);
+				if (hasDeadlines && !isCompleted) {
+					const dates = entryDates(isProject ? entry : {}, this.app.metadataCache.getFileCache(file)?.frontmatter);
+					renderDeadlineControl(rowEl, file.path, dates.deadline, entry.line, entry.sourceLine);
+					if (isProject && dates.issue) rowEl.createSpan({ cls: 'horizon-kanban-date-issue', text: 'Check dates', attr: { title: dates.issue } });
+				}
+				if (isCompleted) rowEl.querySelectorAll<HTMLElement>('[data-note-path]').forEach(element => element.setAttribute('data-selection-kind', row.kind));
 				if (row.node.children.length) {
 					const children = item.createEl('ul', { cls: 'horizon-note-children' });
 					for (const node of [...row.node.children].reverse()) {
-						pending.push({ node, list: children, nested: true });
+						pending.push({ node, list: children, nested: true, kind: row.kind });
 					}
 				}
 			}

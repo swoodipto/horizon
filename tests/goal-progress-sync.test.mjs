@@ -304,10 +304,13 @@ test('adding/removing tasks changes the denominator and checking all tasks never
 	assert.equal(project.properties.custom, 7);
 });
 
-test('a dual-tagged note retains rolled-up goal ownership rather than its own task percentage', async () => {
+test('a completed dual-tagged goal overrides children and reopening restores goal roll-up', async () => {
 	const f = fixture();
 	const both = f.add('Both.md', { tags: ['goal', 'project', 'completed'] }, '', taskCache(1, 1));
 	f.add('Child.md', { tags: ['project'], parent: '[[Both]]' }, '', taskCache(1, 2));
+	await f.sync.reconcile();
+	assert.equal(both.properties.progress, 100);
+	both.properties.tags = ['goal', 'project'];
 	await f.sync.reconcile();
 	assert.equal(both.properties.progress, 50);
 });

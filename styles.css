@@ -1,6 +1,10 @@
 /* Native hover popups are temporarily disabled only for Horizon controls. */
 .tooltip.horizon-tooltip-disabled { display: none; }
 
+.horizon-notes, .horizon-insights {
+	--horizon-deadline-urgent-color: #F54370;
+}
+
 /* Horizon controls use item selection; editable fields keep normal text selection. */
 :is(.horizon-sidebar, .horizon-notes, .horizon-planning, .horizon-insights),
 :is(.horizon-sidebar, .horizon-notes, .horizon-planning, .horizon-insights) * {
@@ -324,6 +328,8 @@
 	transform: scale(1.02) translateY(-8px);
 	box-shadow: 0 14px 12px -6px rgba(0,0,0,0.08);
 }
+.is-mobile .horizon-insights-goal { transition: none; }
+.is-mobile .horizon-insights-goal:hover { transform: none; box-shadow: none; }
 @media (prefers-reduced-motion: reduce) {
 	.horizon-insights-goal { transition: none; }
 	.horizon-insights-goal:hover { transform: none; }
@@ -427,7 +433,9 @@
 .horizon-insights-metric-explanation { margin-block: var(--size-4-2); line-height: var(--line-height-normal); }
 .horizon-insights-empty { color: var(--text-muted); }
 
-.horizon-pace-actual { color: var(--horizon-graph-completed); }
+.horizon-insights-plot svg { --horizon-pace-color: var(--horizon-graph-completed); }
+.horizon-insights-plot svg.horizon-pace-behind { --horizon-pace-color: var(--horizon-deadline-urgent-color); }
+.horizon-pace-actual { color: var(--horizon-pace-color); }
 .horizon-pace-required { color: var(--horizon-graph-scope); }
 .horizon-pace-overdue { color: var(--horizon-graph-deadline); }
 .horizon-pace-tick { fill: var(--text-faint); font-size: var(--font-ui-smaller); font-family: var(--font-interface); }
@@ -463,7 +471,16 @@
 	.horizon-insights-goal-heading { flex-direction: column; align-items: flex-start; gap: var(--size-2-3); margin-block-end: var(--size-4-4); font-size: var(--font-ui-small); }
 	.horizon-insights-goal-link { width: fit-content; flex: none; }
 	.horizon-insights-completion { margin-inline-start: 0; }
-	.horizon-pace-interior-date { transform: translateY(var(--horizon-pace-date-top-offset)); }
+	.horizon-pace-interior-date, .horizon-pace-estimate-date { transform: translateY(var(--horizon-pace-date-top-offset)); }
+	.horizon-pace-interior-date.horizon-pace-date-below-mobile { transform: none; }
+}
+
+.is-mobile .horizon-pace-estimate-date { transform: translateY(var(--horizon-pace-date-top-offset)); }
+.is-mobile .horizon-pace-interior-date.horizon-pace-date-below-mobile { transform: none; }
+.horizon-pace-estimate-date.horizon-pace-date-above { transform: translateY(var(--horizon-pace-date-top-offset)); }
+
+.is-mobile :is(.horizon-notes .horizon-note-results, .horizon-insights-content, .view-content.horizon-planning, .view-content.horizon-sidebar) {
+	padding-block-end: calc(max(var(--navbar-height, 0px), var(--mobile-toolbar-height, 48px)) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) + var(--size-4-6));
 }
 
 .horizon-sidebar-project-heading-icon svg {
@@ -544,6 +561,12 @@
 .horizon-sidebar button.horizon-sidebar-entry:hover {
 	background-color: var(--background-modifier-hover);
 	color: var(--text-normal);
+}
+
+.horizon-sidebar button.horizon-sidebar-entry.is-current {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+	font-weight: var(--font-medium);
 }
 
 .is-mobile .horizon-sidebar button.horizon-option,
@@ -652,6 +675,89 @@
 	letter-spacing: inherit;
 }
 
+.horizon-view-switch { margin-inline-start: auto; flex-shrink: 0; }
+
+.view-content.horizon-notes.horizon-kanban-view { container: horizon-kanban / inline-size; }
+.horizon-notes.horizon-kanban-view .markdown-preview-view { padding-inline: 0; }
+.horizon-notes.horizon-kanban-view .markdown-preview-view .markdown-preview-sizer.markdown-preview-sizer {
+	width: 100%; max-width: none; min-width: 0;
+	padding-inline: 0; margin-inline: 0;
+}
+.horizon-notes.horizon-kanban-view .horizon-note-results {
+	box-sizing: border-box; width: 100%; max-width: 1480px; min-width: 0;
+	margin-inline: auto; padding-inline: var(--size-4-6);
+}
+@container horizon-kanban (max-width: 600px) {
+	.horizon-notes.horizon-kanban-view .horizon-note-results { padding-inline: var(--size-4-3); }
+}
+.horizon-kanban {
+	overflow: auto; max-width: 100%; max-height: 75vh; overscroll-behavior: contain;
+	--horizon-column-width: 280px;
+	--horizon-column-gap: var(--size-4-3);
+}
+.horizon-kanban-headers, .horizon-kanban-cells {
+	display: grid;
+	grid-template-columns: repeat(var(--horizon-board-columns), minmax(0, 1fr));
+	gap: var(--horizon-column-gap); width: 100%;
+	min-width: calc(var(--horizon-board-columns) * var(--horizon-column-width) + (var(--horizon-board-columns) - 1) * var(--horizon-column-gap));
+}
+.horizon-kanban-headers { position: sticky; top: 0; z-index: 2; background: var(--background-primary); padding-block: var(--size-4-2); }
+.horizon-kanban-column-title { display: flex; align-items: center; gap: var(--size-4-2); color: var(--text-muted); font-size: var(--font-ui-small); }
+.horizon-kanban-column-title svg { width: 1em; height: 1em; }
+.horizon-kanban-headers > .horizon-kanban-column-title {
+	min-width: 0; padding: var(--size-4-2) var(--size-4-4);
+	border-radius: var(--radius-m); background: var(--background-secondary);
+}
+.horizon-kanban-column-title .horizon-note-count {
+	background-color: color-mix(in srgb, var(--text-normal) 8%, transparent);
+	color: var(--text-muted); font-weight: var(--font-medium);
+}
+.horizon-kanban-cell > .horizon-kanban-column-title {
+	position: sticky; top: 0; z-index: 1; background: var(--background-secondary);
+	padding: var(--size-4-2) var(--size-4-3); margin-block-end: var(--size-4-2);
+}
+.horizon-kanban-lane { margin-block-end: var(--size-4-4); }
+.horizon-kanban-lane-title {
+	position: sticky; left: 0; width: fit-content; max-width: 100%; box-sizing: border-box;
+	margin-block: var(--size-4-3); padding: var(--size-2-1) var(--size-4-3); border-radius: 999px;
+	background: color-mix(in srgb, var(--text-normal) 8%, transparent);
+	color: var(--text-muted); font-size: var(--font-ui-small); overflow-wrap: anywhere;
+}
+.horizon-kanban-cell { min-height: 120px; padding: var(--size-4-1); border-radius: var(--radius-m); background: var(--background-secondary); }
+.horizon-kanban-cell.is-drop-target { box-shadow: inset 0 0 0 2px var(--interactive-accent); }
+.horizon-notes .horizon-kanban-card {
+	display: grid; grid-template-columns: 20px minmax(0, 1fr) 20px;
+	align-items: start; gap: var(--size-4-1); position: relative;
+	padding: var(--size-4-3); margin-block-end: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary);
+	font-size: var(--font-ui-small); line-height: var(--line-height-normal); cursor: pointer;
+}
+.horizon-notes .horizon-kanban-card.has-selection { border-color: var(--interactive-accent); }
+.horizon-notes .horizon-kanban-card > a.horizon-note-link {
+	padding: 0; width: auto; border-radius: 0; grid-column: 2; white-space: normal; overflow-wrap: anywhere; background: transparent;
+}
+.horizon-kanban-card .horizon-note-text { display: flex; flex-direction: column; min-width: 0; gap: var(--size-4-1); }
+.horizon-kanban-card .horizon-note-title { white-space: normal; }
+.horizon-kanban-card .horizon-note-subtitle { font-size: var(--font-ui-smaller); white-space: normal; overflow-wrap: anywhere; }
+.horizon-notes .horizon-kanban-card button.horizon-project-status { position: static; transform: none; grid-row: 1; grid-column: 1; margin-block-start: 2px; }
+.horizon-kanban-dates { display: flex; flex-wrap: wrap; gap: var(--size-4-1); grid-column: 2 / 4; }
+.horizon-notes button.horizon-kanban-date {
+	display: inline-flex; align-items: center; gap: var(--size-4-1); height: auto;
+	padding: var(--size-2-1) var(--size-4-2); border: 0; border-radius: var(--radius-xl);
+	box-shadow: none; background: var(--background-secondary); color: var(--text-muted); font-size: var(--font-ui-smaller);
+}
+.horizon-kanban-date svg { width: 1em; height: 1em; }
+.horizon-kanban-date-issue { color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.horizon-kanban-handle { grid-column: 3; grid-row: 1; padding: 0; color: var(--text-faint); cursor: grab; touch-action: none; }
+.horizon-kanban-handle:active { cursor: grabbing; }
+.horizon-kanban-drag-preview {
+	position: fixed; inset: 0 auto auto 0; z-index: 1000; pointer-events: none; max-width: 280px;
+	padding: var(--size-4-3); border: 1px solid var(--interactive-accent); border-radius: var(--radius-m);
+	background: var(--background-primary); color: var(--text-normal); box-shadow: var(--shadow-s);
+}
+.horizon-kanban-view [aria-busy="true"] .horizon-kanban { opacity: 0.75; }
+@media (max-width: 600px) { .horizon-kanban { --horizon-column-width: 250px; } }
+
 /* Category titles remain visible when native note titles are hidden. */
 .horizon-notes .horizon-results-heading.inline-title:not([data-level]) {
 	display: flex;
@@ -690,7 +796,7 @@
 .horizon-notes .horizon-note-list {
 	display: flex;
 	flex-direction: column;
-	gap: var(--size-2-1);
+	gap: calc(var(--size-2-1) * 4);
 	list-style: none;
 	margin: var(--size-4-2) 0 0;
 	margin-inline: calc(-1 * var(--size-4-2));
@@ -709,9 +815,9 @@
 .horizon-notes .horizon-note-list .horizon-note-children {
 	display: flex;
 	flex-direction: column;
-	gap: var(--size-2-1);
+	gap: calc(var(--size-2-1) * 4);
 	list-style: none;
-	margin: var(--size-2-1) 0 0;
+	margin: calc(var(--size-2-1) * 4) 0 0;
 	padding: 0;
 }
 
@@ -786,7 +892,7 @@
 }
 
 .horizon-notes button.horizon-note-deadline.is-due {
-	color: #F54370;
+	color: var(--horizon-deadline-urgent-color);
 }
 
 .horizon-deadline-label {
@@ -814,6 +920,12 @@
 }
 
 .horizon-notes .horizon-deadline-row:is(:hover, :has(:focus-visible), .has-selection) > a.horizon-note-link {
+	color: var(--text-normal);
+}
+
+.horizon-notes .horizon-kanban-card:is(:hover, :has(:focus-visible), .has-selection) > a.horizon-note-link,
+.horizon-notes .horizon-kanban-card > a.horizon-note-link:is(:hover, :focus-visible, .is-selected) {
+	background-color: transparent;
 	color: var(--text-normal);
 }
 

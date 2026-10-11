@@ -21,7 +21,7 @@ export function projectPaceSnapshots(
 	return projects.filter(entry => entry.line === undefined && !goalPaths.has(entry.file.path)).map(entry => {
 		const values = properties(entry.file);
 		return {
-			kind: 'project', entry, identity: entryIdentity(entry), progress: projectProgress(status(entry), projectTaskProgress(entry, tasks(entry.file))),
+			kind: 'project', completionTagged: status(entry) === 'completed', entry, identity: entryIdentity(entry), progress: projectProgress(status(entry), projectTaskProgress(entry, tasks(entry.file))),
 			start: values?.[DATE_PROPERTIES.start], deadline: values?.[DATE_PROPERTIES.deadline],
 		};
 	});
@@ -40,7 +40,7 @@ export function goalSnapshots(
 		}));
 		const dates = properties(entry.file);
 		return {
-			entry, identity: entryIdentity(entry), progress: evaluated.progress.get(entry) ?? 0,
+			entry, completionTagged: !!entry.completionTagged, identity: entryIdentity(entry), progress: evaluated.progress.get(entry) ?? 0,
 			contributors, scope: contributors.length,
 			unstarted: contributors.filter(child => child.state === 'unstarted').length,
 			started: contributors.filter(child => child.state === 'started').length,

@@ -8,7 +8,7 @@ async function load(file) {
 	return import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 }
 const { normalizeSettings, DEFAULT_SETTINGS } = await load('../src/settings.ts');
-const { openNoteInCurrentTab } = await load('../src/ui/open-note.ts');
+const { openNoteInCurrentTab, openNoteFromSidebar } = await load('../src/ui/open-note.ts');
 
 test('uses theme width by default and restores saved custom-width preferences', () => {
 	assert.deepEqual(normalizeSettings(null), DEFAULT_SETTINGS);
@@ -54,4 +54,40 @@ test('invalid line positions never navigate', async () => {
 	for (const line of [-1, 0.5, NaN, Infinity]) {
 		await assert.rejects(openNoteInCurrentTab(vault, leaf, 'finance.md', line), /Invalid note line/);
 	}
+});
+
+test('sidebar navigation focuses an open goal or project note without opening another copy', async () => {
+	const path = 'Goals/Launch.md', calls = [];
+	const existing = { getViewState: () => ({ type: 'markdown', state: { file: path } }), async openFile(file, options) { calls.push([file.path, options]); } };
+	const results = { getViewState: () => ({ type: 'horizon-tagged-notes', state: { optionId: 'goals' } }), async openFile() { calls.push('results replaced'); } };
+	const workspace = { created: 0, revealed: undefined, active: undefined,
+		getLeavesOfType(type) { return type === 'markdown' ? [existing] : [results]; },
+		getLeaf() { this.created++; throw new Error('Duplicate tab'); },
+		async revealLeaf(leaf) { this.revealed = leaf; }, setActiveLeaf(leaf) { this.active = leaf; } };
+	const vault = { getFileByPath: () => ({ path }) };
+	assert.equal(await openNoteFromSidebar(workspace, vault, 'horizon-tagged-notes', path), existing);
+	assert.deepEqual(calls, []);
+	assert.equal(workspace.created, 0);
+	assert.equal(workspace.revealed, existing);
+	assert.equal(workspace.active, existing);
+	await openNoteFromSidebar(workspace, vault, 'horizon-tagged-notes', path, 12);
+	assert.deepEqual(calls, [[path, { active: true, eState: { line: 12, focus: true } }]]);
+});
+
+test('sidebar navigation uses the results tab when the note is not yet open', async () => {
+	const path = 'Projects/Build.md', calls = [];
+	const results = { async openFile(file, options) { calls.push([file.path, options]); } };
+	const workspace = { getLeavesOfType(type) { return type === 'markdown' ? [] : [results]; },
+		getLeaf() { throw new Error('Unexpected new tab'); }, async revealLeaf() {}, setActiveLeaf() {} };
+	const vault = { getFileByPath: () => ({ path }) };
+	assert.equal(await openNoteFromSidebar(workspace, vault, 'horizon-tagged-notes', path), results);
+	assert.deepEqual(calls, [[path, undefined]]);
+});
+
+test('sidebar navigation rejects missing files before focusing an old tab', async () => {
+	const path = 'Projects/Deleted.md';
+	const existing = { getViewState: () => ({ type: 'markdown', state: { file: path } }), async openFile() { assert.fail('Should not reopen'); } };
+	const workspace = { getLeavesOfType: () => [existing], getLeaf() { assert.fail('Should not create'); },
+		async revealLeaf() { assert.fail('Should not reveal'); }, setActiveLeaf() { assert.fail('Should not activate'); } };
+	await assert.rejects(openNoteFromSidebar(workspace, { getFileByPath: () => null }, 'horizon-tagged-notes', path), /no longer exists/);
 });

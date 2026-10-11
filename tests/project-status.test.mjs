@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { createRequire } from 'node:module';
-const { transformSync } = createRequire(import.meta.url)('esbuild');
-const source = fs.readFileSync(new URL('../src/ui/project-status.ts', import.meta.url), 'utf8');
-const code = transformSync(source, { loader: 'ts', format: 'esm' }).code;
+const { build } = createRequire(import.meta.url)('esbuild');
+const code = (await build({ entryPoints: [fileURLToPath(new URL('../src/ui/project-status.ts', import.meta.url))], bundle: true, write: false, format: 'esm' })).outputFiles[0].text;
 const { PROJECT_STATUSES, setProjectStatus, setLineStatus, projectStatusForTags } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 
 function appFor(frontmatter = {}, content = '') {

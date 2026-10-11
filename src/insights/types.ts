@@ -9,6 +9,7 @@ export interface GoalSnapshot {
 	entry: TaggedEntry<TFile>;
 	identity: EntryIdentity;
 	progress: number;
+	completionTagged?: boolean;
 	scope: number;
 	unstarted: number;
 	started: number;
@@ -18,12 +19,12 @@ export interface GoalSnapshot {
 	contributors: Contributor[];
 }
 
-export type PaceSnapshot = Pick<GoalSnapshot, 'entry' | 'identity' | 'progress' | 'start' | 'deadline'> & {
+export type PaceSnapshot = Pick<GoalSnapshot, 'entry' | 'identity' | 'progress' | 'start' | 'deadline' | 'completionTagged'> & {
 	kind: 'goal' | 'project';
 };
 
 export function visiblePaceEntry(item: PaceSnapshot): boolean {
-	return parseDate(item.start) !== undefined && (item.kind === 'project' || item.progress > 0);
+	return !item.completionTagged && parseDate(item.start) !== undefined && (item.kind === 'project' || item.progress > 0);
 }
 
 export function entryIdentity(entry: TaggedEntry<{ path: string }>): EntryIdentity {

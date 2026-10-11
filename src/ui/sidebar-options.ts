@@ -23,6 +23,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
 			{ id: 'goals', label: 'Goals', icon: 'target', tag: '#goal', noteIcon: GOALS_ICON, shortcut: 'g' },
 			{ id: 'projects', label: 'Projects', icon: PROJECTS_ICON, tag: '#project', noteIcon: 'circle-small', shortcut: 'p' },
 			{ id: 'insights', label: 'Insights', icon: INSIGHTS_ICON, shortcut: 'i' },
+			{ id: 'completed', label: 'Completed', icon: 'circle-check-big', shortcut: 'c' },
 		],
 	},
 	{

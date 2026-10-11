@@ -1,4 +1,5 @@
 import { Component } from 'obsidian';
+import { dayDifference } from '../planning/dates';
 import { formatInsightAxisDate, formatInsightDate } from './format';
 import { paceLayout, percentage, type Pace } from './pace';
 import type { DateKey } from '../planning/types';
@@ -95,11 +96,12 @@ export class PaceGraph extends Component {
 		if (!this.pace) return;
 		const width = Math.max(80, this.root.clientWidth || 409), height = Math.max(100, width * .88);
 		const pace = this.pace, layout = paceLayout(pace, width, height); this.layout = layout;
+		this.svg.setAttribute('class', pace.delta !== undefined && pace.delta < 0 ? 'horizon-pace-behind' : '');
 		this.svg.replaceChildren();
 		const defs = this.element('defs', {});
 		const gradient = this.element('linearGradient', { id: `${this.id}-area`, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-		this.element('stop', { offset: '0%', 'stop-color': 'var(--horizon-graph-completed)', 'stop-opacity': '.2' }, gradient);
-		this.element('stop', { offset: '100%', 'stop-color': 'var(--horizon-graph-completed)', 'stop-opacity': '0' }, gradient);
+		this.element('stop', { offset: '0%', 'stop-color': 'var(--horizon-pace-color)', 'stop-opacity': '.2' }, gradient);
+		this.element('stop', { offset: '100%', 'stop-color': 'var(--horizon-pace-color)', 'stop-opacity': '0' }, gradient);
 		for (const value of [0, 50, 100]) {
 			this.element('line', { x1: 16, x2: width - 16, y1: layout.y(value), y2: layout.y(value), class: 'horizon-insights-baseline' });
 		}
@@ -116,22 +118,36 @@ export class PaceGraph extends Component {
 			this.element('circle', { cx: layout.estimateX!, cy: layout.y(100), r: 3, class: 'horizon-insights-point horizon-pace-actual' });
 		}
 		this.element('circle', { cx: layout.current.x, cy: layout.current.y, r: 4.5, class: 'horizon-insights-point horizon-pace-actual' });
-		const dates = [layout.from];
-		if (pace.deadline && pace.kind !== 'unavailable' && pace.deadline > layout.from && pace.deadline < layout.to) dates.push(pace.deadline);
-		if (layout.to !== layout.from) dates.push(layout.to);
+		const showEstimateDate = !!pace.estimatedEnd && (!pace.deadline
+			|| Math.abs(dayDifference(pace.deadline, pace.estimatedEnd)) > 1);
+		const dates = [...new Set([
+			layout.from,
+			...(pace.deadline && pace.kind !== 'unavailable' ? [pace.deadline] : []),
+			...(showEstimateDate ? [pace.estimatedEnd!] : []),
+			...(showEstimateDate || layout.to !== pace.estimatedEnd ? [layout.to] : []),
+		])].sort();
+		const firstDate = dates[0]!, lastDate = dates.at(-1)!;
+		const dateX = (date: DateKey) => showEstimateDate && date === pace.estimatedEnd && layout.estimateX !== undefined
+			? layout.estimateX : layout.x(date);
+		const labelClearance = 80;
+		const estimateAbove = showEstimateDate && pace.estimatedEnd !== undefined && dates.some(date =>
+			date !== pace.estimatedEnd && Math.abs(dateX(date) - dateX(pace.estimatedEnd!)) < labelClearance);
 		let axisHeight = height + 10;
 		for (const date of dates) {
-			const x = layout.x(date);
-			const interior = date > layout.from && date < layout.to;
-			// Keep a deadline aligned with its marker even when its label is near an endpoint.
-			const crowded = interior
-				&& Math.min(x - layout.x(layout.from), layout.x(layout.to) - x) < 48;
+			const isEstimate = showEstimateDate && date === pace.estimatedEnd;
+			const x = dateX(date);
+			const interior = date > firstDate && date < lastDate;
+			const closeToEstimate = date === pace.deadline && !isEstimate && estimateAbove
+				&& layout.estimateX !== undefined && Math.abs(x - layout.estimateX) < labelClearance;
+			// Keep milestone labels aligned with their markers even when near an endpoint.
+			const crowded = interior && !isEstimate
+				&& Math.min(x - dateX(firstDate), dateX(lastDate) - x) < 48;
 			const y = layout.y(0) + 24 + (crowded ? 20 : 0);
 			if (crowded) axisHeight += 20;
-			const alignment = layout.from === layout.to ? 'middle' : date === layout.from ? 'start' : date === layout.to ? 'end' : 'middle';
+			const alignment = firstDate === lastDate ? 'middle' : date === firstDate ? 'start' : date === lastDate ? 'end' : 'middle';
 			this.element('text', { x, y, 'text-anchor': alignment,
-				class: `horizon-pace-tick${interior ? ' horizon-pace-interior-date' : ''}`,
-				...(interior ? { style: `--horizon-pace-date-top-offset: ${layout.y(100) - 10 - y}px` } : {}),
+				class: `horizon-pace-tick${interior ? ' horizon-pace-interior-date' : ''}${isEstimate ? ' horizon-pace-estimate-date' : ''}${isEstimate && estimateAbove ? ' horizon-pace-date-above' : ''}${closeToEstimate ? ' horizon-pace-date-below-mobile' : ''}`,
+				...(interior || isEstimate ? { style: `--horizon-pace-date-top-offset: ${layout.y(100) - 10 - y}px` } : {}),
 			}).textContent = formatInsightAxisDate(date);
 		}
 		this.svg.setAttribute('viewBox', `0 0 ${width} ${axisHeight}`);

@@ -13,6 +13,10 @@ test('Insights chart palette follows native theme tokens without light/dark over
 	const palette = charts.replace(/box-shadow:\s*[^;]+;/g, '');
 	assert.doesNotMatch(palette, /#[\da-f]{3,8}\b|\brgba?\(|\bhsla?\(/i);
 	assert.doesNotMatch(css, /\.theme-(?:light|dark)\s+\.horizon-insights-card/);
+	assert.match(css, /--horizon-deadline-urgent-color: #F54370;/);
+	assert.match(css, /\.horizon-note-deadline\.is-due\s*\{\s*color: var\(--horizon-deadline-urgent-color\)/);
+	assert.match(charts, /svg\.horizon-pace-behind\s*\{\s*--horizon-pace-color: var\(--horizon-deadline-urgent-color\)/);
+	assert.match(charts, /\.horizon-pace-actual\s*\{\s*color: var\(--horizon-pace-color\)/);
 });
 
 test('Insights typography uses native interface font, UI sizes and line heights', () => {

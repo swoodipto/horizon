@@ -2,6 +2,7 @@ import type { TagCache } from 'obsidian';
 import type { ParentNote } from './parent-notes';
 import { GOALS_ICON } from './icon-ids';
 import { projectStatusForTags } from './project-status';
+import { withoutInlineProjectDates } from './inline-project-dates';
 
 export interface TaggedMetadata {
 	noteTags: readonly string[];
@@ -18,6 +19,7 @@ export interface TaggedEntry<T> {
 	dependents?: readonly ParentNote[];
 	line?: number;
 	sourceLine?: string;
+	completionTagged?: boolean;
 }
 
 /** Match a tag and its nested tags without matching similarly named tags. */
@@ -61,7 +63,7 @@ export async function findTaggedEntries<T extends { basename: string; path: stri
 		if (!metadata) return [];
 		const entries: TaggedEntry<T>[] = [];
 		if (matchesTag(metadata.noteTags, tag)) {
-			const entry: TaggedEntry<T> = { file, text: file.basename };
+			const entry: TaggedEntry<T> = { file, text: file.basename, ...(metadata.noteTags.some(tag => tag.replace(/^#/, '').toLowerCase() === 'completed') ? { completionTagged: true } : {}) };
 			if (metadata.parents?.length) {
 				entry.parents = metadata.parents;
 			}
@@ -84,14 +86,18 @@ export async function findTaggedEntries<T extends { basename: string; path: stri
 			let text = lines[line];
 			if (text === undefined) continue;
 			const sourceLine = text;
+			const displayTags = [...tags, ...metadata.lineTags.filter(item => item.position.start.line === line && item.tag.toLowerCase() === '#completed' && !tags.includes(item))];
+			// A fresh vault read can precede the cache update. Never slice at stale columns.
+			if (displayTags.some(item => text?.slice(item.position.start.col, item.position.end.col) !== item.tag)) continue;
 			// Remove matching tags from right to left so cached columns remain valid.
-			for (const item of tags.sort((a, b) => b.position.start.col - a.position.start.col)) {
+			for (const item of displayTags.sort((a, b) => b.position.start.col - a.position.start.col)) {
 				text = text.slice(0, item.position.start.col) + text.slice(item.position.end.col);
 			}
+			if (['#project', '#goal'].includes(tag.toLocaleLowerCase())) text = withoutInlineProjectDates(text);
 			text = text.trim().replace(/^(?:>\s*)+/, '')
 				.replace(/^(?:[-+*]|\d+[.)])\s+/, '').replace(/^\[[ xX]\]\s*/, '')
 				.replace(/^#{1,6}\s+/, '').replace(/[\t ]{2,}/g, ' ').trim();
-			const entry: TaggedEntry<T> = { file, text: text || tag, subtitle: file.basename, line };
+			const entry: TaggedEntry<T> = { file, text: text || tag, subtitle: file.basename, line, ...(metadata.lineTags.some(item => item.position.start.line === line && item.tag.toLowerCase() === '#completed') ? { completionTagged: true } : {}) };
 			if (tag.toLocaleLowerCase() === '#project' || includeSourceLine) entry.sourceLine = sourceLine;
 			entries.push(entry);
 		}

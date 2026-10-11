@@ -24,7 +24,7 @@ const keys = options => buildOptionShortcuts(options).map(({ option, key }) => [
 test('current options share one structured shortcut mapping and preserve the Areas ID', () => {
 	assert.deepEqual(OPTION_SHORTCUTS.map(({ option, key }) => [option.id, key]), [
 		['life-areas', 'a'], ['goals', 'g'], ['projects', 'p'],
-		['insights', 'i'], ['upcoming', 'u'], ['timeline', 't'],
+		['insights', 'i'], ['completed', 'c'], ['upcoming', 'u'], ['timeline', 't'],
 	]);
 	assert.equal(optionForShortcut('a').label, 'Areas');
 	assert.equal(optionForShortcut('a').id, 'life-areas');
@@ -45,7 +45,7 @@ test('inserting a future option before established options preserves their keys 
 	assert.deepEqual(keys([option('project-plans', 'Project plans'), ...existing]), [
 		['project-plans', 'r'],
 		['life-areas', 'a'], ['goals', 'g'], ['projects', 'p'],
-		['insights', 'i'], ['upcoming', 'u'], ['timeline', 't'],
+		['insights', 'i'], ['completed', 'c'], ['upcoming', 'u'], ['timeline', 't'],
 	]);
 });
 

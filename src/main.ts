@@ -4,7 +4,7 @@ import { SidebarManager } from './ui/sidebar-manager';
 import { HorizonNotesView, HORIZON_NOTES_VIEW_TYPE } from './ui/notes-view';
 import { SidebarOption } from './ui/sidebar-options';
 import { openNotesInCenter } from './ui/open-notes';
-import { openNoteInCurrentTab } from './ui/open-note';
+import { openNoteFromSidebar } from './ui/open-note';
 import { DEFAULT_SETTINGS, HorizonSettings } from './settings';
 import { HorizonSettingsTab } from './ui/settings-tab';
 import { registerIcons } from './ui/icons';
@@ -88,7 +88,7 @@ export default class HorizonPlugin extends Plugin {
 		const sidebar = this.app.workspace.getLeavesOfType(HORIZON_VIEW_TYPE)
 			.map(leaf => leaf.view).find(view => view instanceof HorizonSidebarView);
 		if (sidebar) sidebar.selectOption(option);
-		else if (option.tag || isPlanningOption(option) || option.id === 'insights') void this.openNotes(option);
+		else if (option.tag || isPlanningOption(option) || option.id === 'insights' || option.id === 'completed') void this.openNotes(option);
 		else new Notice(`${option.label}: test action.`);
 	}
 
@@ -105,11 +105,11 @@ export default class HorizonPlugin extends Plugin {
 		return this.notesOperation;
 	}
 
-	private async openProject(path: string, line?: number): Promise<void> {
-		const leaf = this.app.workspace.getLeavesOfType(HORIZON_NOTES_VIEW_TYPE)[0]
-			?? this.app.workspace.getLeaf('tab');
-		await openNoteInCurrentTab(this.app.vault, leaf, path, line);
-		await this.app.workspace.revealLeaf(leaf);
-		this.app.workspace.setActiveLeaf(leaf, { focus: true });
+	private openProject(path: string, line?: number): Promise<void> {
+		const next = this.notesOperation.then(async () => {
+			await openNoteFromSidebar(this.app.workspace, this.app.vault, HORIZON_NOTES_VIEW_TYPE, path, line);
+		});
+		this.notesOperation = next.catch(() => {});
+		return next;
 	}
 }

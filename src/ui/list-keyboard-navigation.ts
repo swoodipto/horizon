@@ -3,6 +3,7 @@ import { Component, Platform } from 'obsidian';
 interface RowIdentity {
 	path: string;
 	line: string | null;
+	kind?: string;
 }
 
 interface PendingFocus {
@@ -155,9 +156,10 @@ export class ListKeyboardNavigation extends Component {
 	}
 
 	/** Select and reveal one exact note or inline entry after external navigation. */
-	selectEntry(path: string, line?: number): boolean {
+	selectEntry(path: string, line?: number, lane?: string): boolean {
 		const row = this.rows().find(candidate => candidate.getAttribute('data-note-path') === path &&
-			candidate.getAttribute('data-note-line') === (line === undefined ? null : String(line)));
+			candidate.getAttribute('data-note-line') === (line === undefined ? null : String(line)) &&
+			(lane === undefined || candidate.closest('[data-board-lane]')?.getAttribute('data-board-lane') === lane));
 		if (!row) return false;
 		this.selectSingle(row);
 		this.focusRow(row);
@@ -214,11 +216,11 @@ export class ListKeyboardNavigation extends Component {
 
 	private identity(row: Element): RowIdentity | undefined {
 		const path = row.getAttribute('data-note-path');
-		return path === null ? undefined : { path, line: row.getAttribute('data-note-line') };
+		return path === null ? undefined : { path, line: row.getAttribute('data-note-line'), kind: row.getAttribute('data-selection-kind') ?? undefined };
 	}
 
 	private sameIdentity(left: RowIdentity | undefined, right: RowIdentity): boolean {
-		return left?.path === right.path && left.line === right.line;
+		return left?.path === right.path && left.line === right.line && left.kind === right.kind;
 	}
 
 	private isEditable(target: HTMLElement): boolean {

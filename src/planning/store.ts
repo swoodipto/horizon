@@ -4,6 +4,7 @@ import { projectStatusForTags } from '../ui/project-status';
 import { matchesTag } from '../ui/tagged-notes';
 import { DATE_PROPERTIES, parseDate } from './dates';
 import type { PlanningProject, ProjectDates } from './types';
+import { inlineProjectDates, withoutInlineProjectDates } from '../ui/inline-project-dates';
 
 type Properties = Record<string, unknown>;
 const STALE_PLAN = 'The project plan changed. Reopen it and try again.';
@@ -66,7 +67,7 @@ function inlineTitle(line: string, tags: readonly TagCache[]): string {
 	for (const tag of [...tags].sort((a, b) => b.position.start.col - a.position.start.col)) {
 		text = text.slice(0, tag.position.start.col) + text.slice(tag.position.end.col);
 	}
-	return text.trim().replace(/^(?:>\s*)+/, '').replace(/^(?:[-+*]|\d+[.)])\s+/, '')
+	return withoutInlineProjectDates(text).trim().replace(/^(?:>\s*)+/, '').replace(/^(?:[-+*]|\d+[.)])\s+/, '')
 		.replace(/^\[[ xX]\]\s*/, '').replace(/^#{1,6}\s+/, '').replace(/[\t ]{2,}/g, ' ').trim() || 'Project';
 }
 
@@ -91,7 +92,7 @@ function replaceInline(content: string, project: PlanningProject, link: string):
 		const end = tag.index + tag[0].length;
 		updated = updated.slice(0, start) + (position === 0 ? link : '') + updated.slice(end);
 	}
-	parts[index] = updated;
+	parts[index] = withoutInlineProjectDates(updated);
 	return parts.join('');
 }
 
@@ -117,9 +118,10 @@ export class PlanningStore {
 				const tags = inlineTags.filter(tag => tag.position.start.line === line &&
 					sourceLine.slice(tag.position.start.col, tag.position.end.col) === tag.tag);
 				if (!tags.length) continue; // Metadata may lag a just-promoted source line.
+				const dates = inlineProjectDates(sourceLine);
 				projects.push({ id: `${file.path}:${line}`, path: file.path, title: inlineTitle(sourceLine, tags),
 					status: projectStatusForTags((cache.tags ?? []).filter(tag => tag.position.start.line === line).map(tag => tag.tag)).tag,
-					dependencies: [], inline: { line, sourceLine } });
+					start: dates.start, deadline: dates.deadline, dependencies: [], inline: { line, sourceLine } });
 			}
 			return projects;
 		}));

@@ -53,6 +53,26 @@ test('renders actual pace, unchanged required target and a dotted estimated-fini
 	assert.match(f.root.attributes['aria-label'],/not recorded history/);
 });
 
+test('behind-schedule graphs switch actual lines, markers and gradient together and reset when caught up',t=>{
+	const f=fixture(t), svg=f.root.children[0];
+	for(const [progress,extra,behind] of [
+		[10,{},true], [0,{},true],
+		[49.99,{deadline:'2026-10-10'},true],
+		[50,{deadline:'2026-10-10'},false], [75,{},false],
+		[50,{deadline:'2026-10-06'},true], [100,{deadline:'2026-10-06'},false],
+		[50,{start:'2026-10-07',deadline:'2026-10-07'},true],
+		[0,{start:'2026-10-08'},false], [25,{deadline:undefined},false],
+		[25,{deadline:'invalid'},false],
+	]) {
+		f.update(progress,extra);
+		assert.equal(svg.attributes.class==='horizon-pace-behind',behind,JSON.stringify({progress,...extra}));
+		const elements=nodes(svg);
+		assert.ok(elements.filter(el=>el.tag==='stop').every(el=>el.attributes['stop-color']==='var(--horizon-pace-color)'));
+		assert.ok(elements.filter(el=>el.tag==='path'&&el.attributes.class?.includes('horizon-pace-actual')).every(el=>!el.attributes.stroke));
+		assert.ok(elements.some(el=>el.tag==='circle'&&el.attributes.class==='horizon-insights-point horizon-pace-actual'));
+	}
+});
+
 test('cards show only their title, progress and compact dates by default, and title navigation follows updates',t=>{
 	t.mock.method(globalThis,'ResizeObserver',function(){return{observe(){},disconnect(){}};});
 	const root=new Element(), opened=[];
@@ -97,20 +117,59 @@ test('axis has compact endpoint dates without percentage ticks, with a middle de
 	assert.ok(Number(labels[1].attributes.y)+topOffset<Number(marker.attributes.y1));
 	assert.ok(labels[1].attributes.class.includes('horizon-pace-interior-date'));
 	assert.equal(labels[0].attributes.style,undefined);
-	assert.equal(labels[2].attributes.style,undefined);
+	assert.match(labels[2].attributes.class,/horizon-pace-estimate-date/);
+	assert.match(labels[2].attributes.style,/--horizon-pace-date-top-offset:/);
 	assert.equal(f.tooltip.hidden,true);
 	f.root.trigger('keydown',{key:'End'});assert.match(f.tooltip.textContent,/Estimated finish/);
 });
 
-test('an endpoint deadline is labeled once and a nearby middle deadline uses another row instead of overlapping',t=>{
+test('an estimated finish before the deadline has its own marker-aligned date label',t=>{
+	const f=fixture(t), elements=nodes(f.root.children[0]);
+	const labels=elements.filter(el=>el.tag==='text');
+	assert.deepEqual(labels.map(el=>el.textContent),['4.10','12.10','18.10']);
+	const estimate=labels[1];
+	assert.match(estimate.attributes.class,/horizon-pace-estimate-date/);
+	assert.match(estimate.attributes.class,/horizon-pace-interior-date/);
+	const marker=elements.find(el=>el.tag==='circle'&&el.attributes.class==='horizon-insights-point horizon-pace-actual'&&el.attributes.r==='3');
+	assert.equal(estimate.attributes.x,marker.attributes.cx);
+	assert.match(estimate.attributes.style,/--horizon-pace-date-top-offset:/);
+});
+
+test('estimated dates within one day of a deadline leave only the deadline axis label',t=>{
 	const f=fixture(t);
-	assert.deepEqual(nodes(f.root.children[0]).filter(el=>el.tag==='text').map(el=>el.textContent),['4.10','18.10']);
-	f.update(40,{deadline:'2026-10-11'});
-	const labels=nodes(f.root.children[0]).filter(el=>el.tag==='text');
-	assert.deepEqual(labels.map(el=>el.textContent),['4.10','11.10','12.10']);
-	assert.ok(Number(labels[1].attributes.y)>Number(labels[2].attributes.y));
+	assert.deepEqual(nodes(f.root.children[0]).filter(el=>el.tag==='text').map(el=>el.textContent),['4.10','12.10','18.10']);
+	for(const [progress,deadline] of [[40,'2026-10-11'],[37.5,'2026-10-12'],[35,'2026-10-14']]){
+		f.update(progress,{deadline});
+		const elements=nodes(f.root.children[0]);
+		const labels=elements.filter(el=>el.tag==='text');
+		assert.deepEqual(labels.map(el=>el.textContent),['4.10',`${Number(deadline.slice(-2))}.10`]);
+		assert.ok(labels.every(el=>!el.attributes.class.includes('horizon-pace-estimate-date')));
+		assert.ok(elements.some(el=>el.tag==='path'&&el.attributes.class?.includes('horizon-insights-projection')&&el.attributes.class?.includes('horizon-pace-actual')));
+		assert.match(f.root.attributes['aria-label'],/estimated finish/);
+		f.root.trigger('keydown',{key:'End'});
+		if(progress===35) f.root.trigger('keydown',{key:'ArrowLeft'});
+		assert.match(f.tooltip.textContent,/Estimated finish/);
+	}
+	f.graph.update(percentagePace({progress:34,start:'2026-10-01',deadline:'2026-11-01'},'2026-10-11'));
+	assert.deepEqual(nodes(f.root.children[0]).filter(el=>el.tag==='text').map(el=>el.textContent),['1.10','1.11']);
 	f.update(100,{start:'2026-10-07',deadline:'2026-10-07'});
 	assert.deepEqual(nodes(f.root.children[0]).filter(el=>el.tag==='text').map(el=>el.textContent),['7.10']);
+});
+
+test('a visually crowded estimate moves above the graph while both dates remain visible',t=>{
+	const f=fixture(t);
+	f.root.clientWidth=430;
+	f.graph.update(percentagePace({progress:60,start:'2026-10-04',deadline:'2026-10-18'},'2026-10-11'));
+	const labels=nodes(f.root.children[0]).filter(el=>el.tag==='text');
+	assert.deepEqual(labels.map(el=>el.textContent),['4.10','16.10','18.10']);
+	assert.match(labels[1].attributes.class,/horizon-pace-date-above/);
+	assert.doesNotMatch(labels[2].attributes.class,/horizon-pace-date-above/);
+	const topOffset=Number(labels[1].attributes.style.match(/(-?[\d.]+)px/)[1]);
+	assert.ok(Number(labels[1].attributes.y)+topOffset<Number(labels[1].attributes.y));
+	f.root.clientWidth=800;
+	f.graph.update(percentagePace({progress:60,start:'2026-10-04',deadline:'2026-10-18'},'2026-10-11'));
+	const wideEstimate=nodes(f.root.children[0]).find(el=>el.tag==='text'&&el.textContent==='16.10');
+	assert.doesNotMatch(wideEstimate.attributes.class,/horizon-pace-date-above/);
 });
 test('zero-progress dated entries show their required line and inspectable deadline without a finish estimate',t=>{
 	const f=fixture(t);f.update(0);
@@ -153,6 +212,9 @@ test('lazy rendering and observers clean up; invalid schedules have no lines and
 
 test('coincident deadline and estimated finish keep distinct keyboard labels',t=>{
 	const f=fixture(t);f.update(37.5,{deadline:'2026-10-12'});
+	const matching=nodes(f.root.children[0]).filter(el=>el.tag==='text'&&el.textContent==='12.10');
+	assert.equal(matching.length,1);
+	assert.doesNotMatch(matching[0].attributes.class,/horizon-pace-estimate-date/);
 	f.root.trigger('keydown',{key:'Home'});
 	f.root.trigger('keydown',{key:'ArrowRight'});assert.match(f.tooltip.textContent,/Today/);
 	f.root.trigger('keydown',{key:'ArrowRight'});assert.match(f.tooltip.textContent,/Deadline.*required target/);

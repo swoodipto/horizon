@@ -3,7 +3,7 @@ import { deadlineDaysLeft, formatDeadline } from './deadline';
 import { parseDate, today } from '../planning/dates';
 import { noteActionShortcut } from './note-action-shortcuts';
 
-export function renderDeadlineControl(row: HTMLElement, path: string, value: unknown, line?: number): void {
+export function renderDeadlineControl(row: HTMLElement, path: string, value: unknown, line?: number, sourceLine?: string): void {
 	const formatted = formatDeadline(value);
 	if (!formatted) return;
 	const remaining = deadlineDaysLeft(value);
@@ -12,10 +12,11 @@ export function renderDeadlineControl(row: HTMLElement, path: string, value: unk
 	const button = row.createEl('button', {
 		cls: `horizon-note-deadline${isDue ? ' is-due' : ''}`,
 		attr: { type: 'button', 'data-note-path': path,
-			'aria-label': `Change deadline: ${formatted}${line === undefined ? '' : ' for source note'}`,
+			'aria-label': `Change deadline: ${formatted}`,
 			'aria-haspopup': 'dialog', 'aria-keyshortcuts': noteActionShortcut('deadline') },
 	});
 	if (line !== undefined) button.setAttribute('data-note-line', String(line));
+	if (sourceLine !== undefined) button.setAttribute('data-source-line', sourceLine);
 	const label = button.createSpan({ cls: 'horizon-deadline-label' });
 	const icon = label.createSpan({ attr: { 'aria-hidden': 'true' } });
 	setIcon(icon, 'flag-triangle-right');

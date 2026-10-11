@@ -1,3 +1,4 @@
+import { hasCompletionTag } from './completion-tags';
 import { debounce, parseFrontMatterTags, type App, type Plugin, type TFile } from 'obsidian';
 import { goalSnapshots, projectPaceSnapshots } from '../insights/model';
 import type { GoalSnapshot, PaceSnapshot } from '../insights/types';
@@ -139,13 +140,14 @@ export class GoalProgressSync {
 			const desired = Math.round(progress.get(goal) ?? 0);
 			const cache = this.app.metadataCache.getFileCache(goal.file);
 			if (cache?.frontmatter?.progress === desired) continue;
+			const fingerprint = relevantFingerprint(this.app, goal.file);
 			let written = false;
 			this.ownWrites.set(goal.file.path, {
 				value: desired, fingerprint: relevantFingerprint(this.app, goal.file),
 			});
 			try {
 				await this.app.fileManager.processFrontMatter(goal.file, (current: Record<string, unknown>) => {
-					if (this.disposed || revision !== this.revision) return;
+					if (this.disposed || revision !== this.revision || relevantFingerprint(this.app, goal.file) !== fingerprint || hasCompletionTag(parseFrontMatterTags(current) ?? []) !== !!goal.completionTagged) return;
 					if (!matchesTag(parseFrontMatterTags(current) ?? [], '#goal') || current.progress === desired) return;
 					current.progress = desired;
 					written = true;
