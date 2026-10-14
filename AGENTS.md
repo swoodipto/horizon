@@ -9,6 +9,7 @@ Horizon is an Obsidian community plugin for browsing and organizing Areas, Goals
 - Keep all scope documents, scope amendments and supporting planning/reference briefs in the ignored project-root `scope/` folder. Update the relevant existing scope and its links; do not create scope documents in the root or `handoffs/`.
 - When asked to scope a feature or idea, use the `scope` skill (**ꔛ Scope**). Scrutinize relevant behavior, interactions, data, edge cases and technical feasibility; ask focused questions about gaps, ambiguity, contradictions or uncertainty and record the answers before implementation. Keep unresolved scopes explicitly marked as drafts.
 - Inspect current source before relying on this document or README for a detail that may have changed. Update README when user-facing behavior changes. Keep this file focused on durable constraints and architecture.
+- Before implementing or modifying UI or UX, read `DESIGN.md`. It is the authoritative reference for Horizon design decisions. Reuse its documented components, tokens, state treatments and interaction patterns; inspect current source for the exact implementation and follow Obsidian's native conventions and active theme.
 - Make the smallest change that satisfies the request. Do not broaden scope, rewrite adjacent UI, mutate personal vault notes, or commit, push, publish, tag, or deploy without the user's instruction.
 
 ## Current product state
@@ -91,6 +92,7 @@ Property status writes must preserve unrelated properties and tags. Inline statu
 
 ## Interaction and visual design rules
 
+- Do not add a new styling convention, design token or component when an established pattern serves the need. When an intentional design-system change is agreed and implemented, update `DESIGN.md` in the same change and distinguish the new rule from recommendations.
 - Prefer Obsidian's native `Menu`, `Setting`, `Notice`, icon APIs, accessibility conventions and CSS variables. Match the active theme instead of introducing a separate visual language. Use `currentColor` for custom icons and register/remove custom icon definitions through plugin lifecycle.
 - Preserve separate icon contracts: the Goals sidebar option uses Obsidian's native `target`, Goal entries use a progress ring based on the `horizon-goal` artwork, Goal references retain `horizon-goal`, and the Projects sidebar uses `horizon-layout-grid-circles`. Reuse registered `horizon-logo`, `horizon-parent-child`, and `horizon-dependent` artwork where their existing roles apply; do not rename IDs or redraw supplied assets during unrelated UI work.
 - Keep copy short, sentence case and action-oriented. Use the actual current labels and shortcut registries; do not hard-code a shortcut where the registry allocates it.
@@ -136,6 +138,8 @@ The production bundle is CommonJS targeting ES2021, minified, with no source map
 
 For implementation changes, run relevant regression tests plus build/typecheck/lint in proportion to the change and report what was not run. Tests use Node/esbuild and mocked Obsidian contracts; they do not prove behavior in a live vault. Browser fixtures with mock APIs do not replace live Obsidian, native menu, theme, minimum-version, or physical mobile checks. Use disposable test notes for native mutation checks.
 
+For UI changes, include a design-system compliance check: compare the rendered target against `DESIGN.md` and the adjacent established component, verify relevant hover/focus/selection and responsive/theme states, and record any intentional deviation in `DESIGN.md`. Report the comparison and any unverified native or device states.
+
 Version changes must keep `manifest.json` and `versions.json` aligned. The npm version lifecycle runs `version-bump.mjs` and stages those files, so inspect the result before committing. Release tags match the manifest SemVer exactly with no leading `v`. The tag workflow builds and creates a draft release with individual runtime artifacts; a draft is not a published release or community-catalog registration. Do not release, publish, commit, or push unless requested.
 
 The last documented delivery is commit `0061a76` on `main`, pushed to `origin/main`; verify current state before relying on this. At that delivery the 207-test suite and build passed, lint had zero errors plus one existing `getSettingDefinitions` warning, and the remote SHA matched. These are historical results, not a current baseline guarantee.
@@ -149,6 +153,7 @@ The last documented delivery is commit `0061a76` on `main`, pushed to `origin/ma
 - `src/planning/dates.ts`, `store.ts`, `dependencies.ts` — planning date contract, safe persistence and warning model.
 - `src/calendar/`, `src/timeline/` — unfinished planning surfaces; keep their visibility boundary above.
 - `styles.css` — theme-aware layouts and responsive behavior.
+- `DESIGN.md` — authoritative UI/UX patterns, tokens, component states and review checklist.
 - `tests/` — focused regression tests for pure helpers and mocked Obsidian contracts.
 - `README.md` — user-facing usage and shortcuts.
 - `MEMORY.md`, `handoffs/` — local historical continuity when available; not release artifacts.
