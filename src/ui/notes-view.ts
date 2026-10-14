@@ -5,7 +5,7 @@ import { suppressHorizonTooltips } from './tooltips';
 import { DEPENDENT_ICON, HORIZON_ICON, PARENT_CHILD_ICON } from './icons';
 import { findTaggedEntries } from './tagged-notes';
 import type { HorizonSettings } from '../settings';
-import { openNoteInCurrentTab } from './open-note';
+import { openNoteFromSidebar, openNoteInCurrentTab } from './open-note';
 import { nestTaggedEntries, visibleEntryRelations, type EntryNode } from './entry-tree';
 import type { Events, TFile } from 'obsidian';
 import type { TaggedEntry } from './tagged-notes';
@@ -39,6 +39,10 @@ import { entryDates, dateTarget } from './entry-dates';
 import { boardPreferences, type BoardPreferences } from './project-board-model';
 import { ProjectViewControls } from './project-view-controls';
 import { ProjectBoard } from './project-board';
+import { projectTaskGroups } from './tasks-model';
+import { completeTaskCheckbox, type TaskCheckboxTarget } from './task-checkbox';
+import { renderOpenTaskGroups } from './tasks-render';
+import { TaskToggleKeyboard, taskToggleHotkeys } from './task-toggle-keyboard';
 
 export const HORIZON_NOTES_VIEW_TYPE = 'horizon-tagged-notes';
 
@@ -68,9 +72,11 @@ export class HorizonNotesView extends ItemView {
 	private laterKeyboard: LaterItemsKeyboard | undefined;
 	private history: NoteActionHistory;
 	private historyKeyboard: HistoryKeyboard | undefined;
+	private taskToggleKeyboard: TaskToggleKeyboard | undefined;
 	private boardPreferences: BoardPreferences = boardPreferences(undefined);
 	private viewControls?: ProjectViewControls;
 	private board?: ProjectBoard;
+	private taskTargets = new WeakMap<HTMLInputElement, TaskCheckboxTarget>();
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -131,7 +137,7 @@ export class HorizonNotesView extends ItemView {
 		if (state && typeof state === 'object' && 'optionId' in state) {
 			this.pendingHighlight = undefined;
 			const option = SIDEBAR_SECTIONS.flatMap(section => section.options)
-				.find(item => item.id === state.optionId && (item.tag || item.id === 'completed'));
+				.find(item => item.id === state.optionId && (item.tag || item.id === 'tasks' || item.id === 'completed'));
 			if (option && option.id !== this.selectedOption) {
 				this.selectedOption = option.id;
 				this.pills.reset();
@@ -148,6 +154,7 @@ export class HorizonNotesView extends ItemView {
 		this.menus.close();
 		this.deadlineEditor?.close();
 		this.relationPicker?.close();
+		this.taskToggleKeyboard?.sync();
 		void this.renderNotes();
 		this.syncHeaderTitle();
 		return Promise.resolve();
@@ -170,6 +177,10 @@ export class HorizonNotesView extends ItemView {
 		this.historyKeyboard = this.addChild(new HistoryKeyboard(this.contentEl,
 			() => !this.menus.isOpen && this.app.workspace.getActiveViewOfType(HorizonNotesView) === this,
 			redo => { void this.replayHistory(redo); },
+		));
+		this.taskToggleKeyboard = this.addChild(new TaskToggleKeyboard(this.app, this.contentEl,
+			() => this.selectedOption === 'tasks' && !this.menus.isOpen && this.app.workspace.getActiveViewOfType(HorizonNotesView) === this,
+			() => taskToggleHotkeys(this.app),
 		));
 		this.filterKeyboard = this.addChild(new FilterKeyboardNavigation(this.contentEl,
 			() => this.selectedOption === 'projects' && this.boardPreferences.mode === 'list' && !this.menus.isOpen &&
@@ -198,7 +209,7 @@ export class HorizonNotesView extends ItemView {
 		for (const property of ['parent', 'dependent'] as const) {
 			this.relationKeyboards.push(this.addChild(new RowActionKeyboard(this.contentEl, {
 				...NOTE_ACTION_SHORTCUTS[property], row: '.horizon-note-item', button: 'a.horizon-note-link',
-				enabled: () => !this.menus.isOpen,
+				enabled: () => this.selectedOption !== 'tasks' && !this.menus.isOpen,
 				open: link => {
 					const path = link.getAttribute('data-note-path');
 					if (!path) return;
@@ -233,6 +244,17 @@ export class HorizonNotesView extends ItemView {
 		// Delegate clicks so metadata refreshes do not accumulate link listeners.
 		this.registerDomEvent(this.resultsEl, 'click', (event) => {
 			const target = event.target as HTMLElement | null;
+			const projectPill = target?.closest<HTMLElement>('a.horizon-task-project');
+			if (projectPill) {
+				event.preventDefault();
+				const path = projectPill.getAttribute('data-note-path');
+				if (!path) return;
+				const value = projectPill.getAttribute('data-note-line');
+				const line = value === null ? undefined : Number(value);
+				void openNoteFromSidebar(this.app.workspace, this.app.vault, HORIZON_NOTES_VIEW_TYPE, path, line)
+					.catch((error: unknown) => { console.error('horizon: could not open the project', error); new Notice('Could not open the project.'); });
+				return;
+			}
 			const datePill = target?.closest<HTMLElement>('button.horizon-kanban-date');
 			if (datePill) {
 				event.preventDefault(); event.stopPropagation();
@@ -266,9 +288,24 @@ export class HorizonNotesView extends ItemView {
 			const lineValue = entry?.getAttribute('data-note-line');
 			const line = lineValue == null ? undefined : Number(lineValue);
 			event.preventDefault();
-			void openNoteInCurrentTab(this.app.vault, this.leaf, path, line).catch((error: unknown) => {
+			const open = this.selectedOption === 'tasks'
+				? openNoteFromSidebar(this.app.workspace, this.app.vault, HORIZON_NOTES_VIEW_TYPE, path, line)
+				: openNoteInCurrentTab(this.app.vault, this.leaf, path, line);
+			void open.catch((error: unknown) => {
 				console.error('horizon: could not open the note', error);
 				new Notice('Could not open the note.');
+			});
+		});
+		this.registerDomEvent(this.resultsEl, 'change', (event) => {
+			const checkbox = event.target;
+			if (!(checkbox instanceof HTMLInputElement) || !checkbox.matches('input.horizon-task-checkbox') || !checkbox.checked) return;
+			const target = this.taskTargets.get(checkbox);
+			if (!target) return;
+			checkbox.disabled = true;
+			void this.history.record(app => completeTaskCheckbox(app, target)).then(() => this.renderNotes()).catch((error: unknown) => {
+				checkbox.disabled = false;
+				checkbox.checked = false;
+				new Notice(error instanceof Error ? error.message : 'Could not complete the task.');
 			});
 		});
 		const refresh = debounce(() => { void this.renderNotes(); }, 150, true);
@@ -296,6 +333,8 @@ export class HorizonNotesView extends ItemView {
 	}
 
 	onClose(): Promise<void> {
+		if (this.taskToggleKeyboard) this.removeChild(this.taskToggleKeyboard);
+		this.taskToggleKeyboard = undefined;
 		if (this.board) this.removeChild(this.board); this.board = undefined;
 		if (this.viewControls) this.removeChild(this.viewControls); this.viewControls = undefined;
 		this.stopTooltips?.(); this.stopTooltips = undefined;
@@ -390,6 +429,34 @@ export class HorizonNotesView extends ItemView {
 		});
 	}
 
+	private async renderTasks(results: HTMLElement, version: number): Promise<void> {
+		try {
+			const files = this.app.vault.getMarkdownFiles();
+			const projects = await findTaggedEntries(files, taggedMetadataReader(this.app),
+				file => this.app.vault.cachedRead(file), '#project');
+			const projectFiles = [...new Map(projects.map(project => [project.file.path, project.file])).values()];
+			const contents = new Map(await Promise.all(projectFiles.map(async file =>
+				[file.path, await this.app.vault.cachedRead(file)] as const)));
+			if (version !== this.renderVersion || results !== this.resultsEl) return;
+			const groups = projectTaskGroups(projects,
+				file => this.app.metadataCache.getFileCache(file)?.listItems,
+				file => contents.get(file.path) ?? '',
+				file => this.app.metadataCache.getFileCache(file)?.headings);
+			this.pills.beforeRender();
+			this.board?.beforeRender();
+			this.keyboardNavigation?.beforeRender();
+			this.laterAnimation.reset();
+			this.taskTargets = new WeakMap();
+			renderOpenTaskGroups(results, groups, (checkbox, task) => this.taskTargets.set(checkbox,
+				{ path: task.file.path, line: task.line, sourceLine: task.sourceLine }));
+			this.keyboardNavigation?.afterRender();
+		} catch (error: unknown) {
+			if (version !== this.renderVersion || results !== this.resultsEl) return;
+			console.error('horizon: could not load project tasks', error);
+			new Notice('Could not load project tasks.');
+		}
+	}
+
 	private async renderNotes(): Promise<void> {
 		if (this.board?.isInteracting) return;
 		const version = ++this.renderVersion;
@@ -397,11 +464,17 @@ export class HorizonNotesView extends ItemView {
 		if (!results) return;
 		const option = this.option();
 		const isCompleted = option?.id === 'completed';
-		if (!option || (!option.tag && !isCompleted)) {
+		if (!option || (!option.tag && !isCompleted && option.id !== 'tasks')) {
 			results.hidden = true;
 			return;
 		}
 		results.hidden = false;
+		if (option.id === 'tasks') {
+			this.contentEl.removeClass('horizon-kanban-view', 'horizon-completed-view');
+			this.applySettings();
+			await this.renderTasks(results, version);
+			return;
+		}
 		const tag = option.tag ?? '#goal';
 		try {
 			const files = this.app.vault.getMarkdownFiles();

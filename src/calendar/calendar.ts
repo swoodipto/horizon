@@ -3,6 +3,7 @@ import { projectRange, today } from '../planning/dates';
 import type { CalendarMode, DateKey, PlanningProject, PlanningRenderContext } from '../planning/types';
 import { CalendarInteractions } from './interactions';
 import { calendarWeeks, yearMonths, type CalendarSegment, type CalendarWeek } from './layout';
+import { currentTimePosition } from './time-grid';
 
 function dateLabel(date: DateKey, options: Intl.DateTimeFormatOptions): string {
 	return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, options);
@@ -18,7 +19,7 @@ export class CalendarRenderer extends Component {
 	}
 
 	onload(): void {
-		this.root = this.host.createDiv({ cls: `horizon-calendar horizon-calendar-mode-${this.mode}` });
+		this.root = this.host.createDiv({ cls: `horizon-calendar horizon-calendar-mode-${this.mode}${this.mode !== 'month' && this.mode !== 'year' ? ' horizon-calendar-timed' : ''}` });
 		this.interactions = this.addChild(new CalendarInteractions(this.root, this.context));
 		if (this.mode === 'year') this.renderYear();
 		else this.renderDates(this.mode);
@@ -29,14 +30,27 @@ export class CalendarRenderer extends Component {
 	private renderDates(mode: Exclude<CalendarMode, 'year'>): void {
 		const weeks = calendarWeeks(this.context.date, mode, this.context.projects);
 		const count = weeks[0]?.days.length ?? 7;
+		const timed = mode !== 'month';
 		const headings = this.root.createDiv({ cls: 'horizon-calendar-weekdays' });
 		headings.style.setProperty('--horizon-calendar-columns', String(count));
 		for (const date of weeks[0]?.days ?? []) {
-			headings.createDiv({ text: dateLabel(date, { weekday: mode === 'month' ? 'short' : 'long' }) });
+			if (timed) {
+				const button = headings.createEl('button', { cls: 'horizon-calendar-day-heading' });
+				button.createSpan({ text: `${dateLabel(date, { weekday: 'short' })} ` });
+				button.createSpan({ cls: 'horizon-calendar-heading-date', text: String(Number(date.slice(8))) });
+				button.dataset.date = date;
+				button.setAttribute('aria-label', `Open ${dateLabel(date, { dateStyle: 'full' })}`);
+				this.registerDomEvent(button, 'click', () => this.context.navigate(date, 'day'));
+			} else headings.createDiv({ text: dateLabel(date, { weekday: 'short' }) });
 		}
-		const body = this.root.createDiv({ cls: 'horizon-calendar-weeks' });
+		const allDay = timed ? this.root.createDiv({ cls: 'horizon-calendar-all-day' }) : this.root;
+		if (timed) allDay.createDiv({ cls: 'horizon-calendar-all-day-label', text: 'All day' });
+		const body = allDay.createDiv({ cls: 'horizon-calendar-weeks' });
 		for (const week of weeks) this.renderWeek(body, week, mode);
-		this.root.createDiv({ cls: 'horizon-calendar-help', text: 'Select a project to edit. Drag to move, drag an edge to resize, or select empty dates to plan a project.' });
+		if (timed && weeks[0]) this.renderTimeGrid(weeks[0].days);
+		this.root.createDiv({ cls: 'horizon-calendar-help', text: timed
+			? 'Projects are all day. Select one to edit, drag it to move, or select empty all-day dates to plan a project. The grid shows local time.'
+			: 'Select a project to edit. Drag to move, drag an edge to resize, or select empty dates to plan a project.' });
 	}
 
 	private renderWeek(host: HTMLElement, week: CalendarWeek, mode: Exclude<CalendarMode, 'year'>): void {
@@ -51,19 +65,62 @@ export class CalendarRenderer extends Component {
 			if (date === today()) cell.addClass('is-today');
 			if (mode === 'month' && date.slice(0, 7) !== this.context.date.slice(0, 7)) cell.addClass('is-outside-month');
 			const label = mode === 'month' ? String(Number(date.slice(8))) : dateLabel(date, { month: 'short', day: 'numeric' });
-			const button = cell.createEl('button', { cls: 'horizon-calendar-date', text: label });
-			button.setAttribute('aria-label', `Open ${dateLabel(date, { dateStyle: 'full' })}`);
-			if (date === today()) button.setAttribute('aria-current', 'date');
-			this.registerDomEvent(button, 'click', () => this.context.navigate(date, 'day'));
+			if (mode === 'month') {
+				const button = cell.createEl('button', { cls: 'horizon-calendar-date', text: label });
+				button.setAttribute('aria-label', `Open ${dateLabel(date, { dateStyle: 'full' })}`);
+				if (date === today()) button.setAttribute('aria-current', 'date');
+				this.registerDomEvent(button, 'click', () => this.context.navigate(date, 'day'));
+			}
 			const plan = cell.createEl('button', { cls: 'horizon-calendar-add', text: '+' });
 			plan.setAttribute('aria-label', `Plan a project on ${date}`);
 			plan.setAttribute('title', `Plan a project on ${date}`);
 			this.registerDomEvent(plan, 'click', () => this.context.create(date));
 		}
 		const events = row.createDiv({ cls: 'horizon-calendar-events' });
-		events.style.setProperty('--horizon-calendar-lanes', String(Math.max(week.lanes, mode === 'month' ? 2 : 4)));
+		events.style.setProperty('--horizon-calendar-lanes', String(Math.max(week.lanes, mode === 'month' ? 2 : 1)));
 		for (const segment of week.segments) this.renderProject(events, row, segment);
 		this.interactions.registerWeek(row, week.start, week.days.length);
+	}
+
+	private renderTimeGrid(days: DateKey[]): void {
+		const grid = this.root.createDiv({ cls: 'horizon-calendar-time-grid', attr: {
+			role: 'group', 'aria-label': '24-hour local time grid; projects appear above as all-day items',
+		} });
+		const axis = grid.createDiv({ cls: 'horizon-calendar-time-axis' });
+		for (let hour = 0; hour < 24; hour++) {
+			const label = axis.createSpan({ cls: 'horizon-calendar-hour-label', text: `${String(hour).padStart(2, '0')}:00` });
+			label.style.top = `${hour / 24 * 100}%`;
+		}
+		const badge = axis.createEl('time', { cls: 'horizon-calendar-now-time' });
+		const columns = grid.createDiv({ cls: 'horizon-calendar-time-columns' });
+		columns.style.setProperty('--horizon-calendar-columns', String(days.length));
+		const dayColumns = days.map(date => {
+			const column = columns.createDiv({ cls: 'horizon-calendar-time-column' });
+			column.dataset.date = date;
+			return column;
+		});
+		const line = columns.createDiv({ cls: 'horizon-calendar-now-line', attr: { 'aria-hidden': 'true' } });
+		line.createDiv({ cls: 'horizon-calendar-now-segment' });
+		const refresh = (): void => {
+			const position = currentTimePosition(new Date(), days);
+			const currentDate = position?.date;
+			for (const column of dayColumns) column.toggleClass('is-today', column.dataset.date === currentDate);
+			for (const heading of Array.from(this.root.querySelectorAll<HTMLButtonElement>('.horizon-calendar-day-heading'))) {
+				heading.toggleClass('is-today', heading.dataset.date === currentDate);
+				if (heading.dataset.date === currentDate) heading.setAttribute('aria-current', 'date');
+				else heading.removeAttribute('aria-current');
+			}
+			line.hidden = badge.hidden = !position;
+			if (!position) return;
+			const top = `${position.fraction * 100}%`;
+			line.style.top = badge.style.top = top;
+			line.style.setProperty('--horizon-calendar-today-index', String(position.column));
+			badge.textContent = position.label;
+			badge.dateTime = position.label;
+			badge.setAttribute('aria-label', `Current local time ${position.label}`);
+		};
+		refresh();
+		this.registerInterval(window.setInterval(refresh, 30_000));
 	}
 
 	private renderProject(host: HTMLElement, week: HTMLElement, segment: CalendarSegment): void {
@@ -79,6 +136,7 @@ export class CalendarRenderer extends Component {
 		if (segment.continuesBefore) bar.addClass('continues-before');
 		if (segment.continuesAfter) bar.addClass('continues-after');
 		const range = projectRange(project);
+		if (range && range.start !== range.end) bar.addClass('is-range');
 		const details = `${project.title}\n${project.start ?? 'No start date'} → ${project.deadline ?? 'No deadline'}${warnings.length ? `\n${warnings.map(item => item.message).join('\n')}` : ''}`;
 		bar.setAttribute('title', details);
 		if (!segment.continuesBefore) this.addEdge(bar, project, 'start');

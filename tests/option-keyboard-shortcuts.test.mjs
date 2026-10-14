@@ -87,12 +87,12 @@ function fixture() {
 		setActive: value => { active = value; }, setBlocked: value => { blocked = value; } };
 }
 
-test('all six letters use the shared option objects while focused inside Horizon', () => {
+test('all category and planning letters use the shared option objects while focused inside Horizon', () => {
 	const f = fixture();
 	const title = f.root.append('button').append('span');
 	title.focus();
-	const expected = [['a', 'life-areas'], ['g', 'goals'], ['p', 'projects'],
-		['i', 'insights'], ['u', 'upcoming'], ['t', 'timeline']];
+	const expected = [['a', 'life-areas'], ['g', 'goals'], ['p', 'projects'], ['t', 'tasks'],
+		['i', 'insights'], ['o', 'completed'], ['c', 'upcoming'], ['m', 'timeline']];
 	for (const [key, id] of expected) {
 		assert.equal(f.key(key).defaultPrevented, true, key);
 		assert.equal(f.activations.at(-1), options.find(option => option.id === id), id);
@@ -200,13 +200,13 @@ test('multiple Horizon instances consume an event once and each scoped root sele
 test('unloading removes the document listener and reopening has exactly one handler', () => {
 	const f = fixture();
 	f.root.focus(); f.shortcuts.unload();
-	assert.equal(f.key('u').defaultPrevented, false);
+	assert.equal(f.key('c').defaultPrevented, false);
 	assert.equal(f.activations.length, 0);
 	const reopened = new OptionKeyboardShortcuts(f.root, {
 		isActive: () => true, activate: option => f.activations.push(option),
 	});
-	assert.equal(f.key('u').defaultPrevented, true);
+	assert.equal(f.key('c').defaultPrevented, true);
 	assert.equal(f.activations.length, 1);
-	reopened.unload(); assert.equal(f.key('u').defaultPrevented, false);
+	reopened.unload(); assert.equal(f.key('c').defaultPrevented, false);
 	assert.equal(f.activations.length, 1);
 });

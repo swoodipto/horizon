@@ -60,7 +60,7 @@ export class HorizonSidebarView extends ItemView {
 	selectOption(option: SidebarOption): void {
 		this.selectedOption = option.id;
 		this.updateSelection();
-		if (option.tag || isPlanningOption(option) || option.id === 'insights' || option.id === 'completed') void this.openNotes(option);
+		if (option.tag || isPlanningOption(option) || option.id === 'tasks' || option.id === 'insights' || option.id === 'completed') void this.openNotes(option);
 		else new Notice(`${option.label}: test action.`);
 	}
 

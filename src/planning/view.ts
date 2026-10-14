@@ -35,7 +35,7 @@ export class HorizonPlanningView extends ItemView {
 	}
 
 	getViewType(): string { return HORIZON_PLANNING_VIEW_TYPE; }
-	getDisplayText(): string { return this.state.optionId === 'timeline' ? 'Timeline' : 'Upcoming'; }
+	getDisplayText(): string { return this.state.optionId === 'timeline' ? 'Timeline' : 'Calendar'; }
 	getIcon(): string { return this.state.optionId === 'timeline' ? 'square-chart-gantt' : 'calendar-days'; }
 	getState(): Record<string, unknown> { return { ...this.state }; }
 	focus(): void { this.contentEl.focus({ preventScroll: true }); }

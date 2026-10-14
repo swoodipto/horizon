@@ -88,7 +88,7 @@ export default class HorizonPlugin extends Plugin {
 		const sidebar = this.app.workspace.getLeavesOfType(HORIZON_VIEW_TYPE)
 			.map(leaf => leaf.view).find(view => view instanceof HorizonSidebarView);
 		if (sidebar) sidebar.selectOption(option);
-		else if (option.tag || isPlanningOption(option) || option.id === 'insights' || option.id === 'completed') void this.openNotes(option);
+		else if (option.tag || isPlanningOption(option) || option.id === 'tasks' || option.id === 'insights' || option.id === 'completed') void this.openNotes(option);
 		else new Notice(`${option.label}: test action.`);
 	}
 

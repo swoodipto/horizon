@@ -24,7 +24,7 @@ const keys = options => buildOptionShortcuts(options).map(({ option, key }) => [
 test('current options share one structured shortcut mapping and preserve the Areas ID', () => {
 	assert.deepEqual(OPTION_SHORTCUTS.map(({ option, key }) => [option.id, key]), [
 		['life-areas', 'a'], ['goals', 'g'], ['projects', 'p'],
-		['insights', 'i'], ['completed', 'c'], ['upcoming', 'u'], ['timeline', 't'],
+		['tasks', 't'], ['insights', 'i'], ['completed', 'o'], ['upcoming', 'c'], ['timeline', 'm'],
 	]);
 	assert.equal(optionForShortcut('a').label, 'Areas');
 	assert.equal(optionForShortcut('a').id, 'life-areas');
@@ -45,7 +45,7 @@ test('inserting a future option before established options preserves their keys 
 	assert.deepEqual(keys([option('project-plans', 'Project plans'), ...existing]), [
 		['project-plans', 'r'],
 		['life-areas', 'a'], ['goals', 'g'], ['projects', 'p'],
-		['insights', 'i'], ['completed', 'c'], ['upcoming', 'u'], ['timeline', 't'],
+		['tasks', 't'], ['insights', 'i'], ['completed', 'o'], ['upcoming', 'c'], ['timeline', 'm'],
 	]);
 });
 
@@ -53,8 +53,8 @@ test('explicit keys are case insensitive and invalid or conflicting reservations
 	assert.deepEqual(keys([
 		option('plans', 'Plans', 'P'), option('projects', 'Projects', 'p'),
 		option('goals', 'Goals', '?'), option('areas', 'Areas', 'AB'),
-		option('upcoming', 'Upcoming', ' u '),
-	]), [['plans', 'p'], ['projects', 'r'], ['goals', 'g'], ['areas', 'a'], ['upcoming', 'u']]);
+		option('upcoming', 'Calendar', ' c '),
+	]), [['plans', 'p'], ['projects', 'r'], ['goals', 'g'], ['areas', 'a'], ['upcoming', 'c']]);
 });
 
 test('multiple collisions advance through label letters in definition order', () => {

@@ -1,7 +1,7 @@
 /* Native hover popups are temporarily disabled only for Horizon controls. */
 .tooltip.horizon-tooltip-disabled { display: none; }
 
-.horizon-notes, .horizon-insights {
+.horizon-notes, .horizon-insights, .horizon-planning {
 	--horizon-deadline-urgent-color: #F54370;
 }
 
@@ -20,6 +20,7 @@
 
 .view-content.horizon-planning {
 	padding: var(--size-4-6);
+	padding-block-end: var(--size-4-8);
 	overflow: auto;
 }
 
@@ -96,13 +97,14 @@
 .horizon-planning-editor-actions { display: flex; justify-content: flex-end; gap: var(--size-4-2); margin-top: var(--size-4-4); }
 
 @media (max-width: 600px) {
-	.view-content.horizon-planning { padding: var(--size-4-3); }
+	.view-content.horizon-planning { padding: var(--size-4-3); padding-block-end: var(--size-4-8); }
 	.horizon-planning-heading h2 { font-size: var(--h3-size); }
 	.horizon-planning-project-title { max-width: 160px; }
 }
 
 .view-content.horizon-sidebar {
 	padding: var(--size-4-3);
+	padding-block-end: var(--size-4-8);
 	background-color: var(--background-secondary);
 }
 
@@ -285,6 +287,7 @@
 	max-width: 1480px;
 	margin-inline: auto;
 	padding: var(--size-4-6);
+	padding-block-end: var(--size-4-8);
 	display: grid;
 	gap: var(--size-4-6);
 	font-family: var(--font-interface);
@@ -358,7 +361,8 @@
 	text-decoration: none;
 	border-radius: var(--radius-xl);
 }
-.horizon-insights-goal-link:hover {
+.horizon-insights-goal-link:hover,
+.horizon-notes a.horizon-task-project:hover {
 	background-color: color-mix(in srgb, var(--text-accent) 14%, transparent);
 	color: var(--text-accent);
 	text-decoration: none;
@@ -458,7 +462,7 @@
 }
 
 @container horizon-insights (max-width: 600px) {
-	.horizon-insights-content { padding: var(--size-4-3); gap: var(--size-4-5); }
+	.horizon-insights-content { padding: var(--size-4-3); padding-block-end: var(--size-4-8); gap: var(--size-4-5); }
 	.horizon-insights-title { display: none; }
 	.horizon-insights-section {
 		padding: var(--size-4-2);
@@ -638,6 +642,8 @@
 	padding: 0;
 }
 
+.horizon-notes .markdown-preview-view { padding-block-end: 0; }
+
 /* Reading views handle the phone header inset inside their scroll container,
    just like native Markdown panes, so the outer pane must not add it again. */
 .is-phone .mod-root .workspace-leaf-content[data-type="horizon-tagged-notes"] {
@@ -647,6 +653,13 @@
 .horizon-notes .horizon-note-results {
 	padding: 0;
 	border-top: 0;
+}
+
+/* A final block remains scrollable when a theme removes the reading pane's bottom padding. */
+body:not(.is-mobile) .horizon-notes .horizon-note-results::after {
+	content: '';
+	display: block;
+	block-size: var(--size-4-8);
 }
 
 .horizon-notes.horizon-custom-width .markdown-preview-view .markdown-preview-sizer.markdown-preview-sizer {
@@ -811,6 +824,30 @@
 	font-weight: var(--font-normal);
 	line-height: var(--line-height-normal);
 }
+
+.horizon-task-group + .horizon-task-group { margin-block-start: var(--size-4-6); }
+.horizon-notes a.horizon-task-project {
+	display: inline-flex; max-width: 100%; box-sizing: border-box;
+	padding: var(--size-4-1) var(--size-4-3); border-radius: 999px;
+	background: color-mix(in srgb, var(--text-normal) 8%, transparent);
+	color: var(--text-muted); font-size: var(--font-text-size); font-family: var(--font-text);
+	font-weight: var(--font-medium); line-height: var(--line-height-normal);
+	text-decoration: none; overflow-wrap: anywhere;
+}
+.horizon-notes a.horizon-task-project:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.horizon-notes .horizon-task-list .horizon-task-item {
+	display: flex; align-items: center; min-width: 0; border-radius: var(--radius-m);
+}
+.horizon-task-checkbox-wrap {
+	display: flex; align-items: center; flex: 0 0 auto;
+	padding-inline-start: var(--size-4-2);
+}
+.horizon-notes .horizon-task-item input.horizon-task-checkbox {
+	flex: 0 0 auto; top: 0; left: 0; margin: 0; cursor: pointer;
+}
+.horizon-notes .horizon-task-item > a.horizon-note-link { flex: 1 1 auto; min-width: 0; width: auto; }
+.horizon-notes .horizon-task-item:is(:hover, :has(:focus-visible), .has-selection) { background: var(--nav-item-background-hover); }
+.horizon-notes .horizon-task-item > a.horizon-note-link:is(:hover, :focus-visible, .is-selected) { background: transparent; }
 
 .horizon-notes .horizon-note-list .horizon-note-children {
 	display: flex;
@@ -1279,7 +1316,9 @@
 .horizon-calendar {
 	--horizon-calendar-columns: 7;
 	--horizon-calendar-lanes: 2;
-	--horizon-calendar-row-height: 30px;
+	--horizon-calendar-row-height: 22px;
+	--horizon-calendar-time-gutter: 56px;
+	--horizon-calendar-hour-height: 56px;
 	color: var(--text-normal);
 	min-width: 0;
 }
@@ -1293,8 +1332,40 @@
 	color: var(--text-muted);
 	text-align: center;
 }
-.horizon-calendar-weeks { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); overflow: hidden; }
-.horizon-calendar-week { position: relative; min-height: 106px; }
+.horizon-calendar-timed .horizon-calendar-weekdays { padding-inline-start: var(--horizon-calendar-time-gutter); }
+.horizon-calendar-weekdays button.horizon-calendar-day-heading {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--size-2-1);
+	min-width: 0;
+	padding: 2px 4px;
+	border: 0;
+	box-shadow: none;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+.horizon-calendar-weekdays button.horizon-calendar-day-heading:hover { color: var(--text-normal); }
+.horizon-calendar-weekdays button.horizon-calendar-day-heading:focus-visible { outline: 2px solid var(--interactive-accent); }
+.horizon-calendar-day-heading.is-today .horizon-calendar-heading-date {
+	padding: 2px 4px;
+	border-radius: var(--radius-s);
+	background: var(--horizon-deadline-urgent-color);
+	color: white;
+}
+.horizon-calendar-all-day {
+	display: grid;
+	grid-template-columns: var(--horizon-calendar-time-gutter) minmax(0, 1fr);
+}
+.horizon-calendar-all-day-label {
+	padding: 8px 4px 0 0;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	text-align: end;
+}
+.horizon-calendar-weeks { border-top: 1px solid var(--background-modifier-border); }
+.horizon-calendar-week { position: relative; min-height: 180px; }
 .horizon-calendar-week + .horizon-calendar-week { border-top: 1px solid var(--background-modifier-border); }
 .horizon-calendar-days { position: absolute; inset: 0; }
 .horizon-calendar-day-cell { position: relative; min-width: 0; cursor: crosshair; }
@@ -1335,9 +1406,9 @@
 .horizon-calendar-events {
 	position: relative;
 	pointer-events: none;
-	padding: 35px 0 8px;
+	padding: 34px 0 12px;
 	grid-template-rows: repeat(var(--horizon-calendar-lanes), var(--horizon-calendar-row-height));
-	gap: 3px 0;
+	gap: 2px 0;
 }
 .horizon-calendar-project {
 	--horizon-project-color: var(--interactive-accent);
@@ -1345,23 +1416,39 @@
 	display: flex;
 	align-items: center;
 	min-width: 0;
-	margin: 0 3px;
+	margin: 0 2px;
 	border-radius: var(--radius-s);
-	border: 1px solid color-mix(in srgb, var(--horizon-project-color) 40%, var(--background-modifier-border));
-	border-left: 3px solid var(--horizon-project-color);
-	background: color-mix(in srgb, var(--horizon-project-color) 17%, var(--background-primary));
+	border: 0;
+	background: transparent;
+	color: color-mix(in srgb, var(--horizon-project-color) 65%, var(--text-normal));
 	pointer-events: auto;
-	font-size: var(--font-ui-small);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+	line-height: 1.3;
 }
-.horizon-calendar-project.continues-before { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left-width: 1px; }
+.horizon-calendar-project::before {
+	content: '';
+	position: absolute;
+	inset-block: 2px;
+	inset-inline-start: 0;
+	width: 3px;
+	border-radius: var(--radius-s);
+	background: var(--horizon-project-color);
+	pointer-events: none;
+}
+.horizon-calendar-project.is-range,
+.horizon-calendar-project:hover,
+.horizon-calendar-project:focus-within { background: color-mix(in srgb, var(--horizon-project-color) 12%, var(--background-primary)); }
+.horizon-calendar-project.continues-before { border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .horizon-calendar-project.continues-after { border-top-right-radius: 0; border-bottom-right-radius: 0; }
-.horizon-calendar-project.has-warning { outline: 1px solid var(--text-warning); outline-offset: -1px; }
-.horizon-calendar-project button { height: 100%; min-height: 0; padding: 0; border: 0; box-shadow: none; background: transparent; color: inherit; }
+.horizon-calendar-project button { height: 100%; min-height: 0; padding: 0; border: 0; box-shadow: none; background: transparent; color: inherit; font-size: inherit; font-weight: inherit; line-height: inherit; }
+.horizon-calendar-project button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 1px; }
 .horizon-calendar-project button.horizon-calendar-project-label {
 	flex: 1;
 	justify-content: flex-start;
 	text-align: left;
-	padding: 0 5px;
+	padding-block: 0;
+	padding-inline: 6px 3px;
 	min-width: 0;
 	white-space: nowrap;
 	overflow: hidden;
@@ -1370,18 +1457,72 @@
 	cursor: grab;
 }
 .horizon-calendar-project-label.is-dragging { opacity: 0.45; cursor: grabbing; }
-.horizon-calendar-project button.horizon-calendar-open { width: 20px; flex: 0 0 20px; font-size: 13px; opacity: 0.65; }
+.horizon-calendar-project button.horizon-calendar-open { width: 16px; flex: 0 0 16px; opacity: 0; }
+.horizon-calendar-project:is(:hover, :focus-within) .horizon-calendar-open { opacity: 0.8; }
 .horizon-calendar-project .horizon-calendar-open:hover { opacity: 1; }
 .horizon-calendar-deadline, .horizon-calendar-warning { flex: 0 0 auto; padding-right: 3px; font-size: 11px; }
 .horizon-calendar-warning { color: var(--text-warning); font-weight: var(--font-bold); }
 .horizon-calendar-deadline { color: var(--horizon-project-color); }
-.horizon-calendar-project button.horizon-calendar-edge { width: 6px; flex: 0 0 6px; cursor: ew-resize; touch-action: none; }
-.horizon-calendar-edge:hover, .horizon-calendar-edge:focus-visible { background: var(--horizon-project-color) !important; }
+.horizon-calendar-project button.horizon-calendar-edge { width: 5px; flex: 0 0 5px; cursor: ew-resize; touch-action: none; }
+.horizon-calendar-edge:hover, .horizon-calendar-edge:focus-visible { background: color-mix(in srgb, var(--horizon-project-color) 30%, transparent) !important; }
 .horizon-calendar-help { margin-top: 12px; color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.5; }
 .horizon-calendar-live { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.horizon-calendar-mode-day .horizon-calendar-week, .horizon-calendar-mode-four-days .horizon-calendar-week, .horizon-calendar-mode-week .horizon-calendar-week { min-height: 240px; }
-.horizon-calendar-year-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(235px, 1fr)); gap: 16px; }
-.horizon-calendar-mini-month { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); padding: 12px; }
+.horizon-calendar-timed .horizon-calendar-week { min-height: 36px; }
+.horizon-calendar-timed .horizon-calendar-events { padding: 6px 0 8px; }
+.horizon-calendar-time-grid {
+	display: grid;
+	grid-template-columns: var(--horizon-calendar-time-gutter) minmax(0, 1fr);
+}
+.horizon-calendar-time-axis,
+.horizon-calendar-time-columns { position: relative; height: calc(24 * var(--horizon-calendar-hour-height)); }
+.horizon-calendar-time-axis { color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.horizon-calendar-hour-label {
+	position: absolute;
+	inset-inline-end: 4px;
+	transform: translateY(-50%);
+	white-space: nowrap;
+}
+.horizon-calendar-hour-label:first-of-type { transform: none; }
+.horizon-calendar-time-columns {
+	display: grid;
+	grid-template-columns: repeat(var(--horizon-calendar-columns), minmax(0, 1fr));
+	border-inline-end: 1px solid var(--background-modifier-border);
+}
+.horizon-calendar-time-column {
+	border-inline-start: 1px solid var(--background-modifier-border);
+	background-image: linear-gradient(to bottom, var(--background-modifier-border) 1px, transparent 1px);
+	background-size: 100% var(--horizon-calendar-hour-height);
+}
+.horizon-calendar-time-column.is-today { background-color: color-mix(in srgb, var(--interactive-accent) 3%, transparent); }
+.horizon-calendar-now-line {
+	position: absolute;
+	inset-inline: 0;
+	z-index: 1;
+	border-top: 1px solid var(--horizon-deadline-urgent-color);
+	pointer-events: none;
+}
+.horizon-calendar-now-segment {
+	position: absolute;
+	inset-block-start: -1px;
+	inset-inline-start: calc(var(--horizon-calendar-today-index) * 100% / var(--horizon-calendar-columns));
+	width: calc(100% / var(--horizon-calendar-columns));
+	border-top: 2px solid var(--horizon-deadline-urgent-color);
+}
+.horizon-calendar-now-time {
+	position: absolute;
+	inset-inline-end: 3px;
+	z-index: 1;
+	transform: translateY(-50%);
+	padding: 1px 3px;
+	border-radius: var(--radius-s);
+	background: var(--horizon-deadline-urgent-color);
+	color: white;
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	line-height: 1.2;
+}
+.horizon-calendar-year-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(235px, 1fr)); gap: 24px; }
+.horizon-calendar-mini-month { padding: 8px; }
 .horizon-calendar-mini-month button.horizon-calendar-month-title { border: 0; box-shadow: none; padding: 0 4px; background: transparent; margin-bottom: 8px; font-weight: var(--font-semibold); }
 .horizon-calendar-mini-weekdays, .horizon-calendar-mini-dates { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; gap: 3px; }
 .horizon-calendar-mini-weekdays { font-size: var(--font-ui-smaller); color: var(--text-muted); margin-bottom: 6px; }
@@ -1396,6 +1537,9 @@
 @media (max-width: 700px) {
 	.horizon-calendar-mode-month, .horizon-calendar-mode-week, .horizon-calendar-mode-four-days { min-width: 650px; }
 	.horizon-calendar-day-cell button.horizon-calendar-add { opacity: 0.65; }
+	.horizon-calendar-mode-month .horizon-calendar-week { min-height: 150px; }
+	.horizon-calendar { --horizon-calendar-hour-height: 48px; }
+	.horizon-calendar-project button.horizon-calendar-open { width: 20px; flex-basis: 20px; opacity: 0.65; }
 	.horizon-calendar-year-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 }
 

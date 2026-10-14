@@ -13,7 +13,7 @@ export class PlanningToolbar extends Component {
 
 	onload(): void {
 		const header = this.host.createDiv({ cls: 'horizon-planning-heading' });
-		header.createEl('h2', { text: this.state.optionId === 'timeline' ? 'Timeline' : 'Upcoming' });
+		header.createEl('h2', { text: this.state.optionId === 'timeline' ? 'Timeline' : 'Calendar' });
 		const add = header.createEl('button', { text: 'New project', attr: { type: 'button' } });
 		this.registerDomEvent(add, 'click', () => this.actions.create());
 		const toolbar = this.host.createDiv({ cls: 'horizon-planning-toolbar', attr: { 'aria-label': 'Planning view' } });
